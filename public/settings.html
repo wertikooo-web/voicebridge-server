@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>VoiceBridge — Настройки</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', sans-serif; background: #f8f7ff; min-height: 100vh; padding-bottom: 40px; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 20px 20px 16px; background: white; border-bottom: 1px solid #e5e7eb; position: sticky; top: 0; z-index: 10; }
+    .back { background: none; border: none; font-size: 24px; cursor: pointer; color: #7c5cbf; }
+    h1 { font-size: 18px; font-weight: 700; color: #1a1a2e; }
+    .content { padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+    .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; padding: 0 4px; margin: 12px 0 6px; }
+    .card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 4px; }
+    .row { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+    .row:last-child { border-bottom: none; }
+    .row:active { background: #f8f7ff; }
+    .icon { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .info { flex: 1; }
+    .title { font-size: 14px; font-weight: 600; color: #1a1a2e; }
+    .sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .arrow { font-size: 18px; color: #d1d5db; }
+    .badge-soon { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: #f3f4f6; color: #9ca3af; }
+    .badge-pro { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; background: #ede9f8; color: #7c5cbf; }
+
+    /* Panel */
+    .panel { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: flex-end; }
+    .panel.show { display: flex; }
+    .panel-inner { background: white; border-radius: 24px 24px 0 0; padding: 20px; width: 100%; max-height: 85vh; overflow-y: auto; }
+    .handle { width: 40px; height: 4px; background: #e5e7eb; border-radius: 2px; margin: 0 auto 16px; }
+    .ptitle { font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
+    .psub { font-size: 13px; color: #6b7280; margin-bottom: 20px; }
+    label { font-size: 13px; font-weight: 500; color: #374151; display: block; margin-bottom: 5px; }
+    input[type=text], input[type=tel], input[type=date], input[type=time], textarea {
+      width: 100%; padding: 11px 14px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; outline: none; margin-bottom: 12px; font-family: 'Inter', sans-serif;
+    }
+    input:focus, textarea:focus { border-color: #7c5cbf; }
+    textarea { resize: vertical; min-height: 70px; }
+    .btn-save { background: #7c5cbf; color: white; border: none; border-radius: 12px; padding: 13px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 4px; }
+    .saved { background: #f0fdf4; border-radius: 10px; padding: 10px; font-size: 13px; color: #166534; text-align: center; display: none; margin-top: 10px; }
+
+    /* Avatar */
+    .avatar-wrap { display: flex; flex-direction: column; align-items: center; margin-bottom: 20px; }
+    .avatar-circle { width: 90px; height: 90px; border-radius: 50%; background: #ede9f8; display: flex; align-items: center; justify-content: center; font-size: 36px; cursor: pointer; overflow: hidden; border: 2px dashed #b39ddb; background-size: cover; background-position: center; }
+    .avatar-hint { font-size: 11px; color: #9ca3af; margin-top: 6px; }
+    .avatar-remove { margin-top: 8px; border: 0; background: #fee2e2; color: #b91c1c; border-radius: 999px; padding: 7px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: none; }
+    .avatar-wrap.has-photo .avatar-remove { display: inline-flex; }
+
+    /* Volume */
+    .vol-row { display: flex; gap: 10px; margin-bottom: 16px; }
+    .vol-btn { flex: 1; background: #f8f7ff; border: 1.5px solid #e5e7eb; border-radius: 12px; padding: 14px 8px; text-align: center; cursor: pointer; }
+    .vol-btn.active { background: #ede9f8; border-color: #7c5cbf; }
+    .vol-icon { font-size: 22px; display: block; margin-bottom: 4px; }
+    .vol-label { font-size: 12px; font-weight: 600; }
+    .sound-setting { background: #f8f7ff; border: 1px solid #ede9f8; border-radius: 14px; padding: 12px; margin-bottom: 12px; }
+    .sound-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+    .sound-title { font-size: 13px; font-weight: 700; color: #1a1a2e; }
+    .sound-current { font-size: 12px; color: #7c5cbf; font-weight: 600; }
+    .sound-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .sound-btn { border: 1.5px solid #e5e7eb; background: white; border-radius: 11px; padding: 9px 6px; font-size: 11px; font-weight: 700; color: #374151; cursor: pointer; }
+    .sound-btn.active { border-color: #7c5cbf; background: #ede9f8; color: #5b3fa3; }
+    .history-list { display: grid; gap: 10px; }
+    .history-day { font-size: 12px; font-weight: 800; color: #7c5cbf; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 8px; }
+    .history-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; background: #f9fafb; border: 1px solid #eef2f7; }
+    .history-icon { width: 40px; height: 40px; border-radius: 50%; background: #ede9f8; display: flex; align-items: center; justify-content: center; }
+    .history-name { font-size: 13px; font-weight: 700; color: #1f2937; }
+    .history-msg { font-size: 12px; color: #6b7280; margin-top: 2px; line-height: 1.35; }
+    .history-time { font-size: 11px; color: #9ca3af; }
+    .sensor-grid { display: grid; gap: 10px; }
+    .sensor-row { display: grid; grid-template-columns: 42px 1fr auto; gap: 12px; align-items: center; padding: 12px; border-radius: 14px; background: #f9fafb; border: 1px solid #eef2f7; }
+    .sensor-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; background: #eef2ff; }
+    .sensor-title { font-size: 13px; font-weight: 700; color: #1f2937; }
+    .sensor-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
+    .sensor-check { width: 20px; height: 20px; accent-color: #7c5cbf; }
+    .file-box { border: 1.5px dashed #c4b5fd; background: #fbf9ff; border-radius: 14px; padding: 14px; margin: 4px 0 12px; }
+    .file-add { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; border: 0; border-radius: 12px; background: #ede9f8; color: #5b3fa3; padding: 12px; font-size: 13px; font-weight: 800; cursor: pointer; }
+    .file-hint { font-size: 11px; line-height: 1.4; color: #6b7280; margin-top: 8px; text-align: center; }
+    .file-list { display: grid; gap: 8px; margin: 10px 0 12px; }
+    .file-item { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 10px; background: #f9fafb; border: 1px solid #eef2f7; border-radius: 12px; }
+    .file-icon { width: 34px; height: 34px; border-radius: 10px; background: #ede9f8; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+    .file-name { font-size: 13px; font-weight: 700; color: #1f2937; word-break: break-word; }
+    .file-meta { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .file-delete { border: 0; border-radius: 10px; background: #fee2e2; color: #991b1b; width: 34px; height: 34px; cursor: pointer; font-size: 16px; }
+
+    /* Toggle */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .toggle-wrap { position: relative; width: 44px; height: 24px; }
+    .toggle-wrap input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; inset: 0; background: #e5e7eb; border-radius: 24px; cursor: pointer; transition: 0.2s; }
+    .slider::before { content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: 0.2s; }
+    input:checked + .slider { background: #7c5cbf; }
+    input:checked + .slider::before { transform: translateX(20px); }
+
+    /* Stub */
+    .day-chip { padding: 6px 10px; border-radius: 20px; border: 1.5px solid #e5e7eb; background: white; font-size: 12px; font-weight: 600; color: #6b7280; cursor: pointer; }
+    .day-chip.active { background: #7c5cbf; border-color: #7c5cbf; color: white; }
+    .stub { background: #f8f7ff; border-radius: 12px; padding: 20px; text-align: center; margin-bottom: 16px; }
+    .stub-icon { font-size: 36px; margin-bottom: 8px; }
+    .stub-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+    .stub-text { font-size: 12px; color: #9ca3af; }
+    .privacy-note { display: none; background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; margin-top: 12px; font-size: 12px; line-height: 1.45; color: #92400e; text-align: left; }
+    .privacy-note.show { display: block; }
+    .voice-plan { background: linear-gradient(180deg, #fbf9ff, #f3efff); border: 1px solid #ede9f8; border-radius: 18px; padding: 22px 18px; text-align: center; }
+    .voice-answer { font-size: 28px; font-weight: 800; color: #1a1a2e; margin: 8px 0 18px; }
+    .voice-talk-button { width: 118px; height: 118px; border-radius: 50%; margin: 0 auto 18px; border: 0; display: grid; place-items: center; background: radial-gradient(circle at 35% 28%, #a78bfa, #7c5cbf 58%, #5b3fa3); box-shadow: 0 16px 34px rgba(124,92,191,0.28), inset 0 1px 0 rgba(255,255,255,0.28); color: white; font-size: 15px; font-weight: 800; }
+    .voice-disabled-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; font-size: 12px; line-height: 1.45; color: #92400e; text-align: center; }
+    .lunara-panel { background: linear-gradient(145deg, #fff7ed, #f5f3ff); border: 1px solid #eadcff; border-radius: 18px; padding: 14px; margin-top: 14px; }
+    .lunara-panel textarea { min-height: 104px; }
+    .lunara-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
+    .lunara-type { border: 1.5px solid #e5e7eb; background: white; color: #5b556a; border-radius: 12px; padding: 10px 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
+    .lunara-type.active { border-color: #f59e0b; background: #fffbeb; color: #92400e; box-shadow: 0 8px 18px rgba(245,158,11,0.12); }
+    .lunara-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .btn-soft { border: 1.5px solid #f59e0b; background: #fff7ed; color: #92400e; border-radius: 14px; padding: 13px 10px; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .field-note { margin: -8px 0 10px; font-size: 11px; line-height: 1.4; color: #6b7280; }
+    .inline-save { width: 100%; border: 1.5px solid #bbf7d0; background: #f0fdf4; color: #166534; border-radius: 12px; padding: 11px 12px; font-size: 13px; font-weight: 800; cursor: pointer; margin: -2px 0 12px; }
+    .call-mode-list { display: grid; gap: 10px; margin: 12px 0 16px; }
+    .call-mode-option { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; padding: 14px; border: 1.5px solid #e5e7eb; border-radius: 14px; background: #f9fafb; cursor: pointer; }
+    .call-mode-option.active { border-color: #7c5cbf; background: #f5f3ff; box-shadow: 0 8px 20px rgba(124,92,191,0.10); }
+    .call-mode-option input { width: 20px; height: 20px; margin-top: 2px; accent-color: #7c5cbf; }
+    .call-mode-title { font-size: 14px; font-weight: 800; color: #1a1a2e; }
+    .call-mode-text { font-size: 12px; line-height: 1.4; color: #6b7280; margin-top: 3px; }
+  </style>
+</head>
+<body>
+
+<script>
+// Run immediately when page loads - before any framework
+(function() {
+  var events = JSON.parse(localStorage.getItem('vb-events') || '[]');
+  var reminders = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  window._eventsCount = events.length;
+  window._remindersCount = reminders.length;
+})();
+</script>
+<div class="header">
+  <button class="back" onclick="window.location.href='/'">←</button>
+  <h1>⚙️ Настройки</h1>
+</div>
+
+<script>
+// Immediate update of counters
+window.addEventListener('load', function() {
+  var e = JSON.parse(localStorage.getItem('vb-events') || '[]');
+  var el = document.getElementById('sub-birthday');
+  if (el) el.textContent = e.length ? e.length + ' событий' : 'Не добавлены';
+  
+  var r = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  var rel = document.getElementById('sub-reminders');
+  if (rel) rel.textContent = r.length ? r.length + ' напоминаний' : 'Не добавлены';
+  
+  var m = localStorage.getItem('vb-my-name') || '';
+  var mel = document.getElementById('sub-myprofile');
+  if (mel && m) mel.textContent = m;
+  
+  var d = localStorage.getItem('vb-profile-full-name') || localStorage.getItem('vb-profile-display-name') || '';
+  var del2 = document.getElementById('sub-profile');
+  if (del2 && d) del2.textContent = d;
+  
+  var cn = localStorage.getItem('vb-emergency-name') || '';
+  var cp = localStorage.getItem('vb-emergency-phone') || '';
+  var cel = document.getElementById('sub-contact');
+  if (cel && (cn || cp)) cel.textContent = (cn ? cn + ' · ' : '') + cp;
+});
+</script>
+
+<div class="content">
+
+  <div class="section-label">Мой профиль</div>
+  <div class="card">
+    <div class="row" onclick="open_('myprofile')">
+      <div class="icon" style="background:#dbeafe">🧑</div>
+      <div class="info"><div class="title">Мой профиль</div><div class="sub" id="sub-myprofile">Не заполнен</div></div>
+      <span class="arrow">›</span>
+    </div>
+  </div>
+
+  <div class="section-label">Устройство</div>
+  <div class="card">
+    <div class="row" onclick="open_('profile')">
+      <div class="icon" style="background:#dcfce7">👤</div>
+      <div class="info"><div class="title">Профиль устройства</div><div class="sub" id="sub-profile">Не заполнен</div></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="row" onclick="open_('contact')">
+      <div class="icon" style="background:#fee2e2">🆘</div>
+      <div class="info"><div class="title">Экстренный контакт</div><div class="sub" id="sub-contact">Не задан</div></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="row" onclick="open_('volume')">
+      <div class="icon" style="background:#ede9f8">🔊</div>
+      <div class="info"><div class="title">Громкость</div><div class="sub" id="sub-volume">Средняя</div></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="row" onclick="open_('sounds')">
+      <div class="icon" style="background:#ecfeff">🎵</div>
+      <div class="info"><div class="title">Звуки</div><div class="sub" id="sub-sounds">Настроить сигналы</div></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="row" onclick="open_('callmode')">
+      <div class="icon" style="background:#dcfce7">📞</div>
+      <div class="info"><div class="title">Настройка вызова</div><div class="sub" id="sub-callmode">С подтверждением</div></div>
+      <span class="arrow">›</span>
+    </div>
+    <div class="row" onclick="open_('nightmode')">
+      <div class="icon" style="background:#e0f2fe">🌙</div>
+      <div class="info"><div class="title">Ночной режим</div><div class="sub" id="sub-night">Выключен</div></div>
+      <span class="arrow">›</span>
+    </div>
+  </div>
+
+  <div class="section-label">История</div>
+  <div class="card">
+    <div class="row" onclick="open_('history')">
+      <div class="icon" style="background:#fef3c7">🕘</div>
+      <div class="info"><div class="title">История действий</div><div class="sub">Сегодня и два предыдущих дня</div></div>
+      <span class="arrow">›</span>
+    </div>
+  </div>
+
+  <div class="section-label">Семья</div>
+  <div class="card">
+    <div class="row" onclick="open_('family')">
+      <div class="icon" style="background:#fef9c3">👨‍👩‍👧</div>
+      <div class="info"><div class="title">Члены семьи</div><div class="sub">Управление устройствами</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('birthday')">
+      <div class="icon" style="background:#fce7f3">🎂</div>
+      <div class="info"><div class="title">Даты и праздники</div><div class="sub" id="sub-birthday">Не добавлены</div></div>
+      <span class="arrow">›</span>
+    </div>
+  </div>
+
+  <div class="section-label">Мониторинг</div>
+  <div class="card">
+    <div class="row" onclick="open_('activity')">
+      <div class="icon" style="background:#e0f2fe">📊</div>
+      <div class="info"><div class="title">Активность</div><div class="sub">График движений</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('mood')">
+      <div class="icon" style="background:#fef3c7">😊</div>
+      <div class="info"><div class="title">Дневник настроения</div><div class="sub">Эмоциональное состояние</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+  </div>
+
+  <div class="section-label">Расширенные (по заказу)</div>
+  <div class="card">
+    <div class="row" onclick="open_('sensors')">
+      <div class="icon" style="background:#ecfeff">🌡️</div>
+      <div class="info"><div class="title">Датчики</div><div class="sub" id="sub-sensors">Климат, воздух, безопасность</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('mic')">
+      <div class="icon" style="background:#e0f2fe">🎙️</div>
+      <div class="info"><div class="title">Мониторинг звука</div><div class="sub">Включается только по согласию</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('video')">
+      <div class="icon" style="background:#f0fdf4">📹</div>
+      <div class="info"><div class="title">Просмотр камеры</div><div class="sub">Доступ к камере устройства</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('voiceclone')">
+      <div class="icon" style="background:#ecfdf5">🎤</div>
+      <div class="info"><div class="title">Клонирование голоса</div><div class="sub">Фразы твоим голосом</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+    <div class="row" onclick="open_('lunaraai')">
+      <div class="icon" style="background:#fff7ed">✨</div>
+      <div class="info"><div class="title">Lunara AI</div><div class="sub">Истории, напоминания и поддержка через AI</div></div>
+      <span class="badge-pro">Pro</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- MY PROFILE PANEL -->
+<div class="panel" id="p-myprofile" onclick="if(event.target===this)close_('myprofile')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🧑 Мой профиль</div>
+    <div class="psub">Как тебя видят на устройстве</div>
+    <div class="avatar-wrap">
+      <div class="avatar-circle" id="my-avatar-circle" onclick="document.getElementById('my-avatar-input').click()">🧑</div>
+      <input type="file" id="my-avatar-input" accept="image/*" style="display:none" onchange="saveMyAvatar(event)"/>
+      <div class="avatar-hint">Нажми для загрузки фото</div>
+      <button class="avatar-remove" type="button" onclick="deleteMyAvatar()">Удалить фото</button>
+    </div>
+    <label>Моё имя</label><input type="text" id="my-name" placeholder="Алексей"/>
+    <label>Имя и фамилия</label><input type="text" id="my-fullname" placeholder="Алексей Иванцов"/>
+    <label>Телефон</label><input type="tel" id="my-phone" placeholder="+373 XX XXX XXX"/>
+    <button class="btn-save" onclick="saveMyProfile()">Сохранить</button>
+    <div class="saved" id="saved-myprofile">✅ Сохранено!</div>
+  </div>
+</div>
+
+<!-- DEVICE PROFILE PANEL -->
+<div class="panel" id="p-profile" onclick="if(event.target===this)close_('profile')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">👤 Профиль устройства</div>
+    <div class="psub">Информация о владельце устройства</div>
+    <div class="avatar-wrap">
+      <div class="avatar-circle" id="dev-avatar-circle" onclick="document.getElementById('dev-avatar-input').click()">👤</div>
+      <input type="file" id="dev-avatar-input" accept="image/*" style="display:none" onchange="saveDevAvatar(event)"/>
+      <div class="avatar-hint">Нажми для загрузки фото</div>
+      <button class="avatar-remove" type="button" onclick="deleteDevAvatar()">Удалить фото</button>
+    </div>
+    <label>Имя профиля (отображается в приложении)</label><input type="text" id="dev-display-name" placeholder="Папа"/>
+    <label>Имя и фамилия</label><input type="text" id="dev-fullname" placeholder="Владимир Аркадьевич Иванцов"/>
+    <label>Дата рождения</label><input type="text" id="dev-birthday" placeholder="ДД.ММ.ГГГГ"/>
+    <label>Адрес</label><input type="text" id="dev-address" placeholder="Город, улица, дом..."/>
+    <label>Интересы и увлечения</label><textarea id="dev-interests" placeholder="Любит читать, смотреть фильмы..."></textarea>
+    <label>Примечания</label><textarea id="dev-notes" placeholder="Принимает лекарства в 8:00 и 20:00..."></textarea>
+    <label>Контакты родственников</label><textarea id="dev-contacts" placeholder="Сын Алексей: +373 XX XXX XXX"></textarea>
+    <label>Телефон для связи (если есть)</label><input type="tel" id="dev-phone" placeholder="+373 XX XXX XXX"/>
+    <div class="field-note">Этот номер использует зелёная кнопка телефона на главном экране.</div>
+    <button class="inline-save" type="button" onclick="saveDevProfile()">Сохранить телефон для связи</button>
+    <label>Дополнительные файлы</label>
+    <div class="file-box">
+      <button class="file-add" type="button" onclick="document.getElementById('dev-files-input').click()">＋ Добавить файлы</button>
+      <input type="file" id="dev-files-input" accept=".txt,.pdf,.doc,.docx,text/plain,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" multiple style="display:none" onchange="addDevFiles(event)"/>
+      <div class="file-hint">TXT, PDF, Word. До 5 МБ на файл: письма, рассказы, заметки и другая информация о человеке.</div>
+    </div>
+    <div class="file-list" id="dev-files-list"></div>
+    <button class="btn-save" onclick="saveDevProfile()">Сохранить</button>
+    <div class="saved" id="saved-profile">✅ Сохранено!</div>
+  </div>
+</div>
+
+<!-- CONTACT PANEL -->
+<div class="panel" id="p-contact" onclick="if(event.target===this)close_('contact')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🆘 Экстренный контакт</div>
+    <div class="psub">При SOS появится кнопка быстрого звонка</div>
+    <label>Имя контакта</label><input type="text" id="c-name" placeholder="Мария (сестра)"/>
+    <label>Номер телефона</label><input type="tel" id="c-phone" placeholder="+373 XX XXX XXX"/>
+    <button class="btn-save" onclick="saveContact()">Сохранить</button>
+    <div class="saved" id="saved-contact">✅ Сохранено!</div>
+  </div>
+</div>
+
+<!-- VOLUME PANEL -->
+<div class="panel" id="p-volume" onclick="if(event.target===this)close_('volume')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🔊 Громкость</div>
+    <div class="psub">Уровень громкости на устройстве</div>
+    <div class="vol-row">
+      <div class="vol-btn" id="vol-low" onclick="setVol('low')"><span class="vol-icon">🔈</span><span class="vol-label">Тихо</span></div>
+      <div class="vol-btn" id="vol-mid" onclick="setVol('mid')"><span class="vol-icon">🔉</span><span class="vol-label">Средне</span></div>
+      <div class="vol-btn" id="vol-high" onclick="setVol('high')"><span class="vol-icon">🔊</span><span class="vol-label">Громко</span></div>
+    </div>
+    <p style="font-size:12px;color:#9ca3af;text-align:center">Применится при подключении ESP32</p>
+  </div>
+</div>
+
+<!-- SOUNDS PANEL -->
+<div class="panel" id="p-sounds" onclick="if(event.target===this)close_('sounds')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🎵 Звуки</div>
+    <div class="psub">Выберите отдельный сигнал для каждого действия</div>
+    <div id="sound-settings"></div>
+    <p style="font-size:12px;color:#9ca3af;text-align:center">SOS всегда звучит даже в ночном режиме</p>
+  </div>
+</div>
+
+<!-- CALL MODE PANEL -->
+<div class="panel" id="p-callmode" onclick="if(event.target===this)close_('callmode')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">📞 Настройка вызова</div>
+    <div class="psub">Как устройство отправляет запрос “Хочу поговорить”</div>
+    <div class="call-mode-list">
+      <label class="call-mode-option">
+        <input type="radio" name="talk-mode" value="confirm" onchange="saveTalkMode('confirm')"/>
+        <span>
+          <span class="call-mode-title">Соединение с подтверждением</span>
+          <span class="call-mode-text">Первое касание спрашивает: “Хотите поговорить? Коснитесь ещё раз”. Второе касание отправляет запрос.</span>
+        </span>
+      </label>
+      <label class="call-mode-option">
+        <input type="radio" name="talk-mode" value="instant" onchange="saveTalkMode('instant')"/>
+        <span>
+          <span class="call-mode-title">Мгновенное соединение</span>
+          <span class="call-mode-text">Первое касание или кнопка “Хочу поговорить” сразу отправляет запрос без повторного подтверждения.</span>
+        </span>
+      </label>
+    </div>
+    <div class="voice-disabled-note">Для пожилого пользователя безопаснее режим с подтверждением. Мгновенный режим удобен, когда случайные касания маловероятны.</div>
+    <div class="saved" id="saved-callmode">✅ Сохранено!</div>
+  </div>
+</div>
+
+<!-- SENSORS PANEL -->
+<div class="panel" id="p-sensors" onclick="if(event.target===this)close_('sensors')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🌡️ Датчики</div>
+    <div class="psub">Выберите датчики, которые будут подключены к устройству</div>
+    <div class="sensor-grid" id="sensor-settings"></div>
+    <p style="font-size:12px;color:#9ca3af;text-align:center;margin-top:14px">Пока это макет настроек. Позже датчики будут присылать уведомления при опасных значениях.</p>
+  </div>
+</div>
+
+<!-- HISTORY PANEL -->
+<div class="panel" id="p-history" onclick="if(event.target===this)close_('history')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🕘 История</div>
+    <div class="psub">Все действия за сегодня и два предыдущих дня</div>
+    <div class="history-list" id="history-list"></div>
+  </div>
+</div>
+
+<!-- NIGHT MODE PANEL -->
+<div class="panel" id="p-nightmode" onclick="if(event.target===this)close_('nightmode')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🌙 Ночной режим</div>
+    <div class="psub">Устройство молчит и копит сообщения</div>
+    <div class="toggle-row">
+      <span style="font-size:14px;font-weight:600">Включить</span>
+      <label class="toggle-wrap"><input type="checkbox" id="night-on" onchange="saveNight()"/><span class="slider"></span></label>
+    </div>
+    <div id="night-times" style="opacity:0.4;pointer-events:none">
+      <div style="display:flex;gap:12px">
+        <div style="flex:1"><label>Начало</label><input type="time" id="night-start" value="22:00" onchange="saveNight()"/></div>
+        <div style="flex:1"><label>Конец</label><input type="time" id="night-end" value="07:00" onchange="saveNight()"/></div>
+      </div>
+      <div style="background:#f0f9ff;border-radius:10px;padding:10px;font-size:12px;color:#0369a1">💡 Сообщения воспроизводятся утром</div>
+    </div>
+  </div>
+</div>
+
+<!-- BIRTHDAY PANEL -->
+<div class="panel" id="p-birthday" onclick="if(event.target===this)close_('birthday')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🎂 Даты и праздники</div>
+    <div class="psub">Устройство отправит сообщение в 10:00 этого дня</div>
+
+    <!-- Add new -->
+    <div style="background:#f8f7ff;border-radius:14px;padding:14px;margin-bottom:16px">
+      <label>Название события</label>
+      <input type="text" id="bd-title" placeholder="День рождения папы, Новый год..."/>
+      <label>Дата</label>
+      <input type="date" id="bd-date"/>
+      <label>Сообщение (отправится в 10:00)</label>
+      <input type="text" id="bd-msg" placeholder="С днём рождения! Желаем здоровья!"/>
+      <label>Повторять каждый год</label>
+      <div class="toggle-row" style="margin-bottom:12px">
+        <span style="font-size:13px;color:#6b7280">Ежегодное событие</span>
+        <label class="toggle-wrap"><input type="checkbox" id="bd-repeat" checked/><span class="slider"></span></label>
+      </div>
+      <button class="btn-save" onclick="addEvent()">➕ Добавить событие</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:8px">Добавленные события</div>
+    <div id="events-list"><div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px">Нет событий</div></div>
+  </div>
+</div>
+
+<!-- REMINDERS PANEL -->
+<div class="panel" id="p-reminders" onclick="if(event.target===this)close_('reminders')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">⏰ Напоминания</div>
+    <div class="psub">Регулярные напоминания для устройства</div>
+
+    <div style="background:#f8f7ff;border-radius:14px;padding:14px;margin-bottom:16px">
+      <label>Текст напоминания</label>
+      <input type="text" id="rem-text" placeholder="Выпей таблетку, Выйди погулять..."/>
+
+      <label>Время</label>
+      <input type="time" id="rem-time" value="09:00"/>
+
+      <label>Дни недели</label>
+      <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap" id="rem-days">
+        <button class="day-chip active" data-day="1">Пн</button>
+        <button class="day-chip active" data-day="2">Вт</button>
+        <button class="day-chip active" data-day="3">Ср</button>
+        <button class="day-chip active" data-day="4">Чт</button>
+        <button class="day-chip active" data-day="5">Пт</button>
+        <button class="day-chip" data-day="6">Сб</button>
+        <button class="day-chip" data-day="0">Вс</button>
+      </div>
+
+      <button class="btn-save" onclick="addReminder()">➕ Добавить напоминание</button>
+    </div>
+
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:#9ca3af;margin-bottom:8px">Активные напоминания</div>
+    <div id="reminders-list"><div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px">Нет напоминаний</div></div>
+  </div>
+</div>
+
+<!-- STUB PANELS -->
+<div class="panel" id="p-family" onclick="if(event.target===this)close_('family')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">👨‍👩‍👧 Члены семьи</div>
+    <div class="psub">Устройства подключённые к вашей семье</div>
+
+    <!-- Active device -->
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:center;gap:12px">
+      <div style="width:44px;height:44px;border-radius:50%;background:#dcfce7;display:flex;align-items:center;justify-content:center;font-size:22px" id="family-papa-avatar">💜</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#1a1a2e" id="family-papa-name">Папа</div>
+        <div style="font-size:12px;color:#16a34a">● Подключён · Активен</div>
+      </div>
+      <div style="background:#dcfce7;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:#166534">Главное</div>
+    </div>
+
+    <!-- Stub devices -->
+    <div style="font-size:12px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:0.08em;margin:14px 0 8px">Добавить устройство</div>
+
+    <div style="background:#f8f7ff;border:1.5px dashed #e5e7eb;border-radius:14px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="alert('Доступно в следующей версии')">
+      <div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:22px">👵</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#9ca3af">Бабушка</div><div style="font-size:12px;color:#d1d5db">Нажми чтобы добавить</div></div>
+      <div style="font-size:18px;color:#d1d5db">+</div>
+    </div>
+
+    <div style="background:#f8f7ff;border:1.5px dashed #e5e7eb;border-radius:14px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="alert('Доступно в следующей версии')">
+      <div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:22px">👴</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#9ca3af">Дедушка</div><div style="font-size:12px;color:#d1d5db">Нажми чтобы добавить</div></div>
+      <div style="font-size:18px;color:#d1d5db">+</div>
+    </div>
+
+    <div style="background:#f8f7ff;border:1.5px dashed #e5e7eb;border-radius:14px;padding:14px 16px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer" onclick="alert('Доступно в следующей версии')">
+      <div style="width:44px;height:44px;border-radius:50%;background:#f3f4f6;display:flex;align-items:center;justify-content:center;font-size:22px">➕</div>
+      <div style="flex:1"><div style="font-size:14px;font-weight:600;color:#9ca3af">Добавить новое</div><div style="font-size:12px;color:#d1d5db">Подключить ещё одно устройство</div></div>
+    </div>
+
+    <div style="background:#fffbeb;border-radius:10px;padding:10px 14px;font-size:12px;color:#92400e;margin-top:4px">
+      💡 Множество устройств — в следующей версии. Уже скоро!
+    </div>
+  </div>
+</div>
+<div class="panel" id="p-activity" onclick="if(event.target===this)close_('activity')"><div class="panel-inner"><div class="handle"></div><div class="stub"><div class="stub-icon">📊</div><div class="stub-title">Активность</div><div class="stub-text">График движений по датчикам ESP32.</div></div></div></div>
+<div class="panel" id="p-mood" onclick="if(event.target===this)close_('mood')"><div class="panel-inner"><div class="handle"></div><div class="stub"><div class="stub-icon">😊</div><div class="stub-title">Дневник настроения</div><div class="stub-text">Папа нажимает 😊😐😔 — ты видишь динамику.</div></div></div></div>
+<div class="panel" id="p-mic" onclick="if(event.target===this)close_('mic')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="stub">
+      <div class="stub-icon">🎙️</div>
+      <div class="stub-title">Мониторинг звука</div>
+      <div class="stub-text">Доступ к звуку устройства в реальном времени. Pro функция по запросу.</div>
+    </div>
+    <button class="btn-save" onclick="showPrivacyNotice('mic')">Включить звук</button>
+    <div class="privacy-note" id="privacy-mic">
+      Перед включением мониторинга звука необходимо получить согласие человека, рядом с которым находится устройство. Пользователь подтверждает ответственность за соблюдение частной жизни, местных правил и законных оснований для такого доступа.
+    </div>
+  </div>
+</div>
+<div class="panel" id="p-video" onclick="if(event.target===this)close_('video')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="stub">
+      <div class="stub-icon">📹</div>
+      <div class="stub-title">Просмотр камеры</div>
+      <div class="stub-text">Просмотр камеры устройства. Pro функция по запросу.</div>
+    </div>
+    <button class="btn-save" onclick="showPrivacyNotice('video')">Включить камеру</button>
+    <div class="privacy-note" id="privacy-video">
+      Перед включением камеры необходимо получить согласие человека, рядом с которым находится устройство. Пользователь подтверждает ответственность за соблюдение частной жизни, местных правил и законных оснований для видеодоступа.
+    </div>
+  </div>
+</div>
+<div class="panel" id="p-voiceclone" onclick="if(event.target===this)close_('voiceclone')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">🎤 Клонирование голоса</div>
+    <div class="psub">Макет записи голоса для будущего клонирования</div>
+    <div class="voice-plan">
+      <button class="voice-talk-button" type="button">Говорите</button>
+      <div class="voice-disabled-note">Эта функция пока не подключена. Позже здесь можно будет записать голос и использовать его для озвучивания фраз.</div>
+    </div>
+  </div>
+</div>
+<div class="panel" id="p-lunaraai" onclick="if(event.target===this)close_('lunaraai')">
+  <div class="panel-inner">
+    <div class="handle"></div>
+    <div class="ptitle">✨ Lunara AI</div>
+    <div class="psub">Опция подключения к AI будет в следующих версиях</div>
+    <div class="lunara-panel">
+      <label>Что сказать или сделать</label>
+      <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
+      <label>Тип сообщения</label>
+      <div class="lunara-type-grid">
+        <button class="lunara-type" type="button" data-lunara-type="story" onclick="setLunaraType('story')">История</button>
+        <button class="lunara-type" type="button" data-lunara-type="memory" onclick="setLunaraType('memory')">Воспоминание</button>
+        <button class="lunara-type" type="button" data-lunara-type="reminder" onclick="setLunaraType('reminder')">Напоминание</button>
+        <button class="lunara-type" type="button" data-lunara-type="support" onclick="setLunaraType('support')">Фраза поддержки</button>
+      </div>
+      <label>Голос</label>
+      <select id="lunara-voice">
+        <option value="lunara">Lunara</option>
+        <option value="family_member">Голос близкого</option>
+      </select>
+      <label>Запланировать на</label>
+      <input type="datetime-local" id="lunara-scheduled-at"/>
+      <div class="lunara-actions">
+        <button class="btn-soft" type="button" onclick="submitLunara('now')">Сказать сейчас</button>
+        <button class="btn-save" type="button" onclick="submitLunara('scheduled')">Запланировать</button>
+      </div>
+      <div class="voice-disabled-note" style="margin-top:12px">Пока это макет: запрос сохраняется в консоль, реальный POST /api/lunara/speak подключим позже.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── REMINDERS ──
+const DAY_NAMES = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+
+function initDayChips() {
+  document.querySelectorAll('.day-chip').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
+}
+
+function getActiveDays() {
+  return [...document.querySelectorAll('.day-chip.active')].map(b => parseInt(b.dataset.day));
+}
+
+function loadReminders() {
+  const reminders = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  const sub = document.getElementById('sub-reminders');
+  if (sub) sub.textContent = reminders.length ? reminders.length + ' напоминаний' : 'Не добавлены';
+  const list = document.getElementById('reminders-list');
+  if (!list) return;
+  if (!reminders.length) { list.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px">Нет напоминаний</div>'; return; }
+  list.innerHTML = reminders.map((r,i) => `
+    <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+      <span style="font-size:22px">⏰</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${r.text}</div>
+        <div style="font-size:11px;color:#6b7280">${r.time} · ${r.days.map(d => DAY_NAMES[d]).join(', ')}</div>
+      </div>
+      <label style="position:relative;width:40px;height:22px;display:block;margin:0 8px">
+        <input type="checkbox" ${r.active ? 'checked' : ''} onchange="toggleReminder(${i})" style="opacity:0;width:0;height:0">
+        <span style="position:absolute;inset:0;background:${r.active ? '#7c5cbf' : '#e5e7eb'};border-radius:22px;cursor:pointer;transition:0.2s">
+          <span style="position:absolute;width:16px;height:16px;left:${r.active ? '21px' : '3px'};top:3px;background:white;border-radius:50%;transition:0.2s"></span>
+        </span>
+      </label>
+      <button onclick="deleteReminder(${i})" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 10px;cursor:pointer">🗑</button>
+    </div>`).join('');
+}
+
+function addReminder() {
+  const text = document.getElementById('rem-text').value.trim();
+  const time = document.getElementById('rem-time').value;
+  const days = getActiveDays();
+  if (!text) { alert('Введи текст напоминания!'); return; }
+  if (!days.length) { alert('Выбери хотя бы один день!'); return; }
+  const reminders = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  reminders.push({ text, time, days, active: true });
+  reminders.sort((a,b) => a.time.localeCompare(b.time));
+  localStorage.setItem('vb-reminders', JSON.stringify(reminders));
+  // Also add to schedule
+  const schedules = JSON.parse(localStorage.getItem('vb-schedules') || '[]');
+  schedules.push({ id: Date.now(), time, phrase: text, days, active: true });
+  localStorage.setItem('vb-schedules', JSON.stringify(schedules));
+  document.getElementById('rem-text').value = '';
+  loadReminders();
+}
+
+function deleteReminder(i) {
+  const reminders = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  reminders.splice(i, 1);
+  localStorage.setItem('vb-reminders', JSON.stringify(reminders));
+  loadReminders();
+}
+
+function toggleReminder(i) {
+  const reminders = JSON.parse(localStorage.getItem('vb-reminders') || '[]');
+  reminders[i].active = !reminders[i].active;
+  localStorage.setItem('vb-reminders', JSON.stringify(reminders));
+  loadReminders();
+}
+
+// ── EVENTS ──
+function loadEvents() {
+  const events = JSON.parse(localStorage.getItem('vb-events') || '[]');
+  // Always update sub text — even when panel is closed
+  const eventSub = document.getElementById('sub-birthday');
+  if (eventSub) eventSub.textContent = events.length ? events.length + ' событий' : 'Не добавлены';
+  const list = document.getElementById('events-list');
+  if (!list) return; // Panel not open yet — sub already updated above
+  if (!events.length) { list.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:12px">Нет событий</div>'; return; }
+  list.innerHTML = events.map((e,i) => `
+    <div style="background:white;border-radius:12px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+      <span style="font-size:22px">${e.repeat ? '🎂' : '📅'}</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:600">${e.title}</div>
+        <div style="font-size:11px;color:#6b7280">${e.date}${e.repeat ? ' · каждый год' : ''}</div>
+        <div style="font-size:11px;color:#7c5cbf;margin-top:2px">"${e.msg}"</div>
+      </div>
+      <button onclick="deleteEvent(${i})" style="background:#fee2e2;border:none;border-radius:8px;padding:6px 10px;cursor:pointer">🗑</button>
+    </div>`).join('');
+  // Update sub
+  const sub = document.getElementById('sub-birthday');
+  if (sub) sub.textContent = events.length + ' событий';
+}
+
+function addEvent() {
+  const title = document.getElementById('bd-title').value.trim();
+  const date = document.getElementById('bd-date').value;
+  const msg = document.getElementById('bd-msg').value.trim();
+  const repeat = document.getElementById('bd-repeat').checked;
+  if (!title || !date || !msg) { alert('Заполни все поля!'); return; }
+  const events = JSON.parse(localStorage.getItem('vb-events') || '[]');
+  events.push({ title, date, msg, repeat });
+  events.sort((a,b) => a.date.localeCompare(b.date));
+  localStorage.setItem('vb-events', JSON.stringify(events));
+  document.getElementById('bd-title').value = '';
+  document.getElementById('bd-date').value = '';
+  document.getElementById('bd-msg').value = '';
+  loadEvents();
+}
+
+function deleteEvent(i) {
+  const events = JSON.parse(localStorage.getItem('vb-events') || '[]');
+  events.splice(i, 1);
+  localStorage.setItem('vb-events', JSON.stringify(events));
+  loadEvents();
+}
+
+function open_(name) {
+  document.getElementById('p-' + name).classList.add('show');
+  if (name === 'history') renderHistory();
+  if (name === 'sensors') renderSensors();
+  if (name === 'birthday') loadEvents();
+  if (name === 'reminders') loadReminders();
+  if (name === 'lunaraai') setLunaraType(lunaraType);
+}
+function close_(name) { document.getElementById('p-' + name).classList.remove('show'); }
+
+function showPrivacyNotice(name) {
+  const note = document.getElementById('privacy-' + name);
+  if (note) note.classList.add('show');
+}
+
+let lunaraType = 'support';
+function setLunaraType(type) {
+  lunaraType = type || 'support';
+  document.querySelectorAll('.lunara-type').forEach(button => {
+    button.classList.toggle('active', button.dataset.lunaraType === lunaraType);
+  });
+}
+
+function submitLunara(mode) {
+  const prompt = document.getElementById('lunara-prompt').value.trim();
+  if (!prompt) {
+    alert('Введите текст для Lunara AI.');
+    return;
+  }
+  const payload = {
+    deviceId: localStorage.getItem('vb-device-id') || 'local-device',
+    prompt,
+    mode,
+    scheduledAt: document.getElementById('lunara-scheduled-at').value || null,
+    voice: document.getElementById('lunara-voice').value,
+    type: lunaraType
+  };
+  console.log('POST /api/lunara/speak', payload);
+  alert('Lunara AI будет доступна в следующих версиях. Макет запроса сохранён в консоль.');
+}
+
+const SETTINGS_PROFILE_SYNC_KEYS = [
+  'vb-my-name',
+  'vb-my-fullname',
+  'vb-my-phone',
+  'vb-my-avatar',
+  'vb-profile-display-name',
+  'vb-profile-full-name',
+  'vb-profile-birthday',
+  'vb-profile-address',
+  'vb-profile-interests',
+  'vb-profile-notes',
+  'vb-profile-contacts',
+  'vb-profile-files',
+  'vb-profile-avatar',
+  'vb-device-phone',
+  'vb-talk-request-mode',
+  'vb-device-name',
+  'vb-emergency-name',
+  'vb-emergency-phone'
+];
+
+function sendSettingsProfileSync() {
+  try {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const syncSocket = new WebSocket(protocol + '//' + location.host);
+    syncSocket.onopen = () => {
+      syncSocket.send(JSON.stringify({ type: 'register', role: 'sender' }));
+      const values = {};
+      SETTINGS_PROFILE_SYNC_KEYS.forEach(key => {
+        const value = localStorage.getItem(key);
+        if (value !== null) values[key] = value;
+      });
+      syncSocket.send(JSON.stringify({ type: 'profile_sync', values }));
+      setTimeout(() => syncSocket.close(), 250);
+    };
+  } catch(e) {}
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+function historyDate(item) {
+  return item.date || (item.ts ? String(item.ts).slice(0, 10) : new Date().toISOString().slice(0, 10));
+}
+
+function dayLabel(isoDate) {
+  const today = new Date();
+  const target = new Date(isoDate + 'T12:00:00');
+  const diff = Math.round((new Date(today.toISOString().slice(0, 10) + 'T12:00:00') - target) / 86400000);
+  const formatted = target.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
+  if (diff === 0) return 'Сегодня';
+  if (diff === 1) return 'Вчера';
+  if (diff === 2) return 'Позавчера';
+  return formatted;
+}
+
+function historyDateTitle(isoDate) {
+  const target = new Date(isoDate + 'T12:00:00');
+  return dayLabel(isoDate) + ' · ' + target.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+function normalizeActivityHistory() {
+  const today = new Date().toISOString().slice(0, 10);
+  const items = JSON.parse(localStorage.getItem('vb-activity') || '[]');
+  let changed = false;
+  items.forEach(item => {
+    if (!item.date && !item.ts) {
+      item.date = today;
+      item.ts = today + 'T00:00:00.000Z';
+      changed = true;
+    } else if (!item.date && item.ts) {
+      item.date = String(item.ts).slice(0, 10);
+      changed = true;
+    }
+  });
+  if (changed) localStorage.setItem('vb-activity', JSON.stringify(items));
+  return items;
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (!list) return;
+  const now = new Date();
+  const allowed = [];
+  for (let i = 0; i < 3; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    allowed.push(d.toISOString().slice(0, 10));
+  }
+  const items = normalizeActivityHistory()
+    .filter(item => allowed.includes(historyDate(item)));
+  if (!items.length) {
+    list.innerHTML = '<div style="text-align:center;color:#9ca3af;font-size:13px;padding:22px 0">За эти дни действий пока нет</div>';
+    return;
+  }
+  let lastDate = '';
+  list.innerHTML = items.map(item => {
+    const date = historyDate(item);
+    const header = date !== lastDate ? '<div class="history-day">' + historyDateTitle(date) + '</div>' : '';
+    lastDate = date;
+    return header + '<div class="history-item"><div class="history-icon">' + escapeHtml(item.icon || '•') + '</div><div><div class="history-name">' + escapeHtml(item.name || 'Ты') + '</div><div class="history-msg">' + escapeHtml(item.msg || '') + '</div></div><div class="history-time">' + escapeHtml(item.time || '') + '</div></div>';
+  }).join('');
+}
+
+const sensorOptions = [
+  { id: 'air_quality', icon: '🌫️', title: 'Качество воздуха', sub: 'CO2, VOC, общий индекс воздуха' },
+  { id: 'co2', icon: 'CO₂', title: 'CO2', sub: 'Уровень углекислого газа' },
+  { id: 'humidity', icon: '💧', title: 'Влажность', sub: 'Влажность воздуха в помещении' },
+  { id: 'temperature', icon: '🌡️', title: 'Температура воздуха', sub: 'Комфорт и перегрев помещения' },
+  { id: 'smoke', icon: '🚬', title: 'Датчик дыма', sub: 'Раннее обнаружение задымления' },
+  { id: 'gas', icon: '🔥', title: 'Датчик газа', sub: 'Газ, утечки, опасные пары' },
+  { id: 'door', icon: '🚪', title: 'Открытие двери', sub: 'Входная дверь или комната' },
+  { id: 'bed', icon: '🛏️', title: 'Датчик кровати', sub: 'Лёг/встал, ночная активность' },
+  { id: 'motion', icon: '👣', title: 'Движение', sub: 'Активность в комнате' }
+];
+
+function getSensors() {
+  return JSON.parse(localStorage.getItem('vb-sensors') || '[]');
+}
+
+function setSensor(id, enabled) {
+  const selected = new Set(getSensors());
+  if (enabled) selected.add(id); else selected.delete(id);
+  localStorage.setItem('vb-sensors', JSON.stringify([...selected]));
+  updateSensorsSummary();
+}
+
+function updateSensorsSummary() {
+  const count = getSensors().length;
+  const el = document.getElementById('sub-sensors');
+  if (el) el.textContent = count ? count + ' подключено' : 'Не подключены';
+}
+
+function renderSensors() {
+  const selected = new Set(getSensors());
+  const root = document.getElementById('sensor-settings');
+  if (!root) return;
+  root.innerHTML = sensorOptions.map(sensor => `
+    <label class="sensor-row">
+      <div class="sensor-icon">${sensor.icon}</div>
+      <div>
+        <div class="sensor-title">${sensor.title}</div>
+        <div class="sensor-sub">${sensor.sub}</div>
+      </div>
+      <input class="sensor-check" type="checkbox" ${selected.has(sensor.id) ? 'checked' : ''} onchange="setSensor('${sensor.id}', this.checked)"/>
+    </label>
+  `).join('');
+  updateSensorsSummary();
+}
+
+// ── MY PROFILE ──
+function resizeAvatarFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const size = 360;
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        const scale = Math.max(size / img.width, size / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function saveAvatarFile(event, storageKey, render) {
+  const file = event.target.files[0];
+  if (!file) return;
+  try {
+    const avatar = await resizeAvatarFile(file);
+    localStorage.removeItem(storageKey);
+    localStorage.setItem(storageKey, avatar);
+    render(avatar);
+    sendSettingsProfileSync();
+  } catch (error) {
+    alert('Не удалось загрузить фото. Попробуй выбрать изображение поменьше.');
+  } finally {
+    event.target.value = '';
+  }
+}
+
+function saveMyAvatar(e) {
+  const file = e.target.files[0]; if (!file) return;
+  saveAvatarFile(e, 'vb-my-avatar', renderMyAvatar);
+}
+function resetAvatarCircle(id, fallback) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.style.backgroundImage = '';
+  el.style.backgroundSize = '';
+  el.style.backgroundPosition = '';
+  el.textContent = fallback;
+  el.closest('.avatar-wrap')?.classList.remove('has-photo');
+}
+function markAvatarHasPhoto(id) {
+  document.getElementById(id)?.closest('.avatar-wrap')?.classList.add('has-photo');
+}
+function renderMyAvatar(data) {
+  if (!data) { resetAvatarCircle('my-avatar-circle', '🧑'); return; }
+  const el = document.getElementById('my-avatar-circle');
+  el.textContent = ''; el.style.backgroundImage = 'url(' + data + ')';
+  el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center';
+  markAvatarHasPhoto('my-avatar-circle');
+}
+function deleteMyAvatar() {
+  localStorage.setItem('vb-my-avatar', '');
+  renderMyAvatar('');
+  sendSettingsProfileSync();
+}
+function saveMyProfile() {
+  const name = document.getElementById('my-name').value.trim();
+  localStorage.setItem('vb-my-name', name);
+  localStorage.setItem('vb-my-fullname', document.getElementById('my-fullname').value.trim());
+  localStorage.setItem('vb-my-phone', document.getElementById('my-phone').value.trim());
+  document.getElementById('sub-myprofile').textContent = name || 'Не заполнен';
+  sendSettingsProfileSync();
+  flash('myprofile');
+}
+function loadMyProfile() {
+  const name = localStorage.getItem('vb-my-name') || '';
+  const fullname = localStorage.getItem('vb-my-fullname') || '';
+  const phone = localStorage.getItem('vb-my-phone') || '';
+  const avatar = localStorage.getItem('vb-my-avatar') || '';
+  document.getElementById('my-name').value = name;
+  document.getElementById('my-fullname').value = fullname;
+  document.getElementById('my-phone').value = phone;
+  renderMyAvatar(avatar);
+  document.getElementById('sub-myprofile').textContent = name || fullname || 'Не заполнен';
+}
+
+// ── DEVICE PROFILE ──
+function saveDevAvatar(e) {
+  const file = e.target.files[0]; if (!file) return;
+  saveAvatarFile(e, 'vb-profile-avatar', renderDevAvatar);
+}
+function renderDevAvatar(data) {
+  if (!data) { resetAvatarCircle('dev-avatar-circle', '👤'); return; }
+  const el = document.getElementById('dev-avatar-circle');
+  el.textContent = ''; el.style.backgroundImage = 'url(' + data + ')';
+  el.style.backgroundSize = 'cover'; el.style.backgroundPosition = 'center';
+  markAvatarHasPhoto('dev-avatar-circle');
+}
+function deleteDevAvatar() {
+  localStorage.setItem('vb-profile-avatar', '');
+  renderDevAvatar('');
+  sendSettingsProfileSync();
+}
+
+const DEV_FILE_LIMIT = 5 * 1024 * 1024;
+const DEV_FILE_TYPES = {
+  'txt': 'text/plain',
+  'pdf': 'application/pdf',
+  'doc': 'application/msword',
+  'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+};
+
+function getDevFileMeta() {
+  try { return JSON.parse(localStorage.getItem('vb-profile-files') || '[]'); } catch(e) { return []; }
+}
+
+function setDevFileMeta(files) {
+  localStorage.setItem('vb-profile-files', JSON.stringify(files));
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024 * 1024) return Math.max(1, Math.round(bytes / 1024)) + ' КБ';
+  return (bytes / (1024 * 1024)).toFixed(1).replace('.0', '') + ' МБ';
+}
+
+function fileExt(name) {
+  return String(name || '').split('.').pop().toLowerCase();
+}
+
+function fileIcon(ext) {
+  if (ext === 'pdf') return 'PDF';
+  if (ext === 'doc' || ext === 'docx') return 'W';
+  return 'TXT';
+}
+
+function openDevFilesDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('voicebridge-profile-files', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('files', { keyPath: 'id' });
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function putDevFile(record) {
+  const db = await openDevFilesDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').put(record);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+async function deleteDevFileRecord(id) {
+  const db = await openDevFilesDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('files', 'readwrite');
+    tx.objectStore('files').delete(id);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
+}
+
+function renderDevFiles() {
+  const list = document.getElementById('dev-files-list');
+  if (!list) return;
+  const files = getDevFileMeta();
+  if (!files.length) {
+    list.innerHTML = '<div class="stub-text" style="padding:4px 0 10px">Файлы пока не добавлены</div>';
+    return;
+  }
+  list.innerHTML = files.map(file => `
+    <div class="file-item">
+      <div class="file-icon">${fileIcon(file.ext)}</div>
+      <div>
+        <div class="file-name">${escapeHtml(file.name)}</div>
+        <div class="file-meta">${file.ext.toUpperCase()} · ${formatFileSize(file.size)}</div>
+      </div>
+      <button class="file-delete" type="button" onclick="deleteDevFile('${file.id}')">🗑</button>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+}
+
+async function addDevFiles(event) {
+  const input = event.target;
+  const selected = Array.from(input.files || []);
+  if (!selected.length) return;
+  const meta = getDevFileMeta();
+  const rejected = [];
+  try {
+    for (const file of selected) {
+      const ext = fileExt(file.name);
+      if (!DEV_FILE_TYPES[ext]) {
+        rejected.push(`${file.name}: неподдерживаемый формат`);
+        continue;
+      }
+      if (file.size > DEV_FILE_LIMIT) {
+        rejected.push(`${file.name}: больше 5 МБ`);
+        continue;
+      }
+      const id = `file-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      await putDevFile({ id, name: file.name, type: file.type || DEV_FILE_TYPES[ext], size: file.size, ext, blob: file, addedAt: new Date().toISOString() });
+      meta.unshift({ id, name: file.name, type: file.type || DEV_FILE_TYPES[ext], size: file.size, ext, addedAt: new Date().toISOString() });
+    }
+    setDevFileMeta(meta);
+    renderDevFiles();
+    sendSettingsProfileSync();
+    if (rejected.length) alert('Некоторые файлы не добавлены:\n' + rejected.join('\n'));
+  } catch(e) {
+    alert('Не удалось сохранить файл. Возможно, в браузере закончилось место для хранения.');
+  } finally {
+    input.value = '';
+  }
+}
+
+async function deleteDevFile(id) {
+  const meta = getDevFileMeta().filter(file => file.id !== id);
+  setDevFileMeta(meta);
+  try { await deleteDevFileRecord(id); } catch(e) {}
+  renderDevFiles();
+  sendSettingsProfileSync();
+}
+
+function saveDevProfile() {
+  const dn = document.getElementById('dev-display-name').value.trim() || 'Папа';
+  const devicePhone = document.getElementById('dev-phone').value.trim();
+  localStorage.setItem('vb-profile-display-name', dn);
+  localStorage.setItem('vb-profile-full-name', document.getElementById('dev-fullname').value.trim());
+  localStorage.setItem('vb-profile-birthday', document.getElementById('dev-birthday').value.trim());
+  localStorage.setItem('vb-profile-address', document.getElementById('dev-address').value.trim());
+  localStorage.setItem('vb-profile-interests', document.getElementById('dev-interests').value.trim());
+  localStorage.setItem('vb-profile-notes', document.getElementById('dev-notes').value.trim());
+  localStorage.setItem('vb-profile-contacts', document.getElementById('dev-contacts').value.trim());
+  localStorage.setItem('vb-device-phone', devicePhone);
+  localStorage.setItem('vb-device-name', dn);
+  const fn = document.getElementById('dev-fullname').value.trim();
+  document.getElementById('sub-profile').textContent = (fn || dn) + (devicePhone ? ' · телефон задан' : '');
+  sendSettingsProfileSync();
+  flash('profile');
+}
+function loadDevProfile() {
+  const dn = localStorage.getItem('vb-profile-display-name') || '';
+  const fn = localStorage.getItem('vb-profile-full-name') || '';
+  const avatar = localStorage.getItem('vb-profile-avatar') || '';
+  const devicePhone = localStorage.getItem('vb-device-phone') || '';
+  document.getElementById('dev-display-name').value = dn;
+  document.getElementById('dev-fullname').value = fn;
+  document.getElementById('dev-birthday').value = localStorage.getItem('vb-profile-birthday') || '';
+  document.getElementById('dev-address').value = localStorage.getItem('vb-profile-address') || '';
+  document.getElementById('dev-interests').value = localStorage.getItem('vb-profile-interests') || '';
+  document.getElementById('dev-notes').value = localStorage.getItem('vb-profile-notes') || '';
+  document.getElementById('dev-contacts').value = localStorage.getItem('vb-profile-contacts') || '';
+  document.getElementById('dev-phone').value = devicePhone;
+  renderDevAvatar(avatar);
+  document.getElementById('sub-profile').textContent = (fn || dn || 'Не заполнен') + (devicePhone ? ' · телефон задан' : '');
+  renderDevFiles();
+}
+
+// ── CONTACT ──
+function saveContact() {
+  const name = document.getElementById('c-name').value.trim();
+  const phone = document.getElementById('c-phone').value.trim();
+  if (!phone) { alert('Введи номер!'); return; }
+  localStorage.setItem('vb-emergency-name', name);
+  localStorage.setItem('vb-emergency-phone', phone);
+  document.getElementById('sub-contact').textContent = name + ' · ' + phone;
+  sendSettingsProfileSync();
+  flash('contact');
+}
+function loadContact() {
+  const name = localStorage.getItem('vb-emergency-name') || '';
+  const phone = localStorage.getItem('vb-emergency-phone') || '';
+  document.getElementById('c-name').value = name;
+  document.getElementById('c-phone').value = phone;
+  if (name || phone) document.getElementById('sub-contact').textContent = (name ? name + ' · ' : '') + phone;
+}
+
+// ── VOLUME ──
+const volLabels = { low: 'Тихая', mid: 'Средняя', high: 'Громкая' };
+function setVol(level) {
+  localStorage.setItem('vb-volume', level);
+  document.querySelectorAll('.vol-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('vol-' + level).classList.add('active');
+  document.getElementById('sub-volume').textContent = volLabels[level];
+  setTimeout(() => close_('volume'), 500);
+}
+function loadVol() {
+  const v = localStorage.getItem('vb-volume') || 'mid';
+  document.getElementById('vol-' + v).classList.add('active');
+  document.getElementById('sub-volume').textContent = volLabels[v];
+}
+
+// ── SOUNDS ──
+const soundPresets = [
+  { id: 'bell', label: 'Колокол' },
+  { id: 'soft', label: 'Мягкий' },
+  { id: 'chime', label: 'Перелив' },
+  { id: 'pulse', label: 'Пульс' },
+  { id: 'spark', label: 'Искра' },
+  { id: 'rise', label: 'Восход' },
+  { id: 'drop', label: 'Капля' },
+  { id: 'warm', label: 'Тёплый' },
+  { id: 'bright', label: 'Яркий' },
+  { id: 'calm', label: 'Спокойный' },
+  { id: 'lunar', label: 'Lunara' },
+  { id: 'sos', label: 'SOS' }
+];
+const soundTargets = [
+  { key: 'talk', title: 'Хочу поговорить', fallback: 'bell' },
+  { key: 'sos', title: 'SOS', fallback: 'sos' },
+  { key: 'lunara', title: 'Вызов Lunara', fallback: 'lunar' },
+  { key: 'incoming', title: 'Входящие сообщения', fallback: 'soft' }
+];
+function soundStorageKey(key) { return 'vb-sound-' + key; }
+function getSoundChoice(key, fallback) { return localStorage.getItem(soundStorageKey(key)) || fallback; }
+function setSoundChoice(key, sound) {
+  const target = soundTargets.find(item => item.key === key);
+  localStorage.setItem(soundStorageKey(key), sound);
+  renderSoundSettings();
+  updateSoundSummary();
+  playPreviewSound(sound);
+  if (target) document.getElementById('sound-current-' + key).textContent = soundPresets.find(p => p.id === sound)?.label || sound;
+}
+function renderSoundSettings() {
+  const root = document.getElementById('sound-settings');
+  if (!root) return;
+  root.innerHTML = soundTargets.map(target => {
+    const current = getSoundChoice(target.key, target.fallback);
+    const currentLabel = soundPresets.find(p => p.id === current)?.label || current;
+    return `<div class="sound-setting">
+      <div class="sound-head">
+        <div class="sound-title">${target.title}</div>
+        <div class="sound-current" id="sound-current-${target.key}">${currentLabel}</div>
+      </div>
+      <div class="sound-grid">
+        ${soundPresets.map(sound => `<button class="sound-btn ${sound.id === current ? 'active' : ''}" onclick="setSoundChoice('${target.key}','${sound.id}')">${sound.label}</button>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+function updateSoundSummary() {
+  const el = document.getElementById('sub-sounds');
+  if (el) el.textContent = '4 сигнала настроены';
+}
+function playPreviewSound(sound) {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const patterns = {
+      bell: [880, 440],
+      soft: [523, 659],
+      chime: [659, 784, 988],
+      pulse: [392, 392],
+      spark: [1046, 1318],
+      rise: [440, 660, 880],
+      drop: [740, 494],
+      warm: [330, 392, 494],
+      bright: [988, 1174],
+      calm: [392, 523],
+      lunar: [523, 784, 1175],
+      sos: [660, 660, 660]
+    };
+    const notes = patterns[sound] || patterns.bell;
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = sound === 'pulse' || sound === 'sos' ? 'square' : 'sine';
+      const t = ctx.currentTime + i * (sound === 'sos' ? 0.28 : 0.12);
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.001, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+      osc.start(t);
+      osc.stop(t + 0.36);
+    });
+  } catch(e) {}
+}
+function loadSoundSettings() {
+  soundTargets.forEach(target => {
+    if (!localStorage.getItem(soundStorageKey(target.key))) {
+      localStorage.setItem(soundStorageKey(target.key), target.fallback);
+    }
+  });
+  renderSoundSettings();
+  updateSoundSummary();
+}
+
+// ── CALL MODE ──
+const talkModeLabels = {
+  confirm: 'С подтверждением',
+  instant: 'Мгновенно'
+};
+
+function getTalkMode() {
+  return localStorage.getItem('vb-talk-request-mode') || 'confirm';
+}
+
+function saveTalkMode(mode) {
+  const normalized = mode === 'instant' ? 'instant' : 'confirm';
+  localStorage.setItem('vb-talk-request-mode', normalized);
+  loadTalkMode();
+  sendSettingsProfileSync();
+  flash('callmode');
+}
+
+function loadTalkMode() {
+  const mode = getTalkMode();
+  document.querySelectorAll('input[name="talk-mode"]').forEach(input => {
+    input.checked = input.value === mode;
+    input.closest('.call-mode-option')?.classList.toggle('active', input.checked);
+  });
+  const sub = document.getElementById('sub-callmode');
+  if (sub) sub.textContent = talkModeLabels[mode] || talkModeLabels.confirm;
+}
+
+// ── NIGHT MODE ──
+function saveNight() {
+  const on = document.getElementById('night-on').checked;
+  const start = document.getElementById('night-start').value;
+  const end = document.getElementById('night-end').value;
+  localStorage.setItem('vb-night-enabled', on);
+  localStorage.setItem('vb-night-start', start);
+  localStorage.setItem('vb-night-end', end);
+  const times = document.getElementById('night-times');
+  times.style.opacity = on ? '1' : '0.4';
+  times.style.pointerEvents = on ? 'auto' : 'none';
+  document.getElementById('sub-night').textContent = on ? start + ' — ' + end : 'Выключен';
+}
+function loadNight() {
+  const on = localStorage.getItem('vb-night-enabled') === 'true';
+  const start = localStorage.getItem('vb-night-start') || '22:00';
+  const end = localStorage.getItem('vb-night-end') || '07:00';
+  document.getElementById('night-on').checked = on;
+  document.getElementById('night-start').value = start;
+  document.getElementById('night-end').value = end;
+  const times = document.getElementById('night-times');
+  times.style.opacity = on ? '1' : '0.4';
+  times.style.pointerEvents = on ? 'auto' : 'none';
+  document.getElementById('sub-night').textContent = on ? start + ' — ' + end : 'Выключен';
+}
+
+// ── FLASH ──
+function flash(name) {
+  const el = document.getElementById('saved-' + name);
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; close_(name); }, 1500);
+}
+
+// ── INIT ──
+window.addEventListener('message', event => {
+  if (event.origin === location.origin && event.data && event.data.type === 'profile_sync_applied') {
+    loadMyProfile();
+    loadDevProfile();
+    loadContact();
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadMyProfile();
+  loadDevProfile();
+  loadContact();
+  loadVol();
+  loadSoundSettings();
+  loadTalkMode();
+  loadNight();
+  renderHistory();
+  renderSensors();
+  loadFamily();
+  loadEvents();
+  loadReminders();
+  initDayChips();
+  setLunaraType(lunaraType);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,2398 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoiceBridge — Устройство</title>
+  <script type="importmap">
+    { "imports": { "three": "/vendor/three/build/three.module.js" } }
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 430px minmax(620px, 1fr);
+      font-family: Arial, sans-serif;
+      color: white;
+      background: #071019;
+    }
+    .left {
+      z-index: 5;
+      padding: 18px 16px;
+      background:
+        radial-gradient(circle at 50% 8%, rgba(59,130,246,0.12), transparent 34%),
+        linear-gradient(180deg, #07111a, #050b12);
+      border-right: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 24px 0 70px rgba(0,0,0,0.35);
+      overflow: hidden;
+      display: grid;
+      place-items: center;
+    }
+    .phone-shell {
+      width: min(100%, 390px);
+      height: calc(100vh - 36px);
+      min-height: 660px;
+      max-height: 920px;
+      padding: 13px;
+      border-radius: 42px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.18), rgba(255,255,255,0.04) 18%, rgba(0,0,0,0.36)),
+        #111827;
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow: 0 28px 70px rgba(0,0,0,0.44), inset 0 1px 0 rgba(255,255,255,0.2);
+      position: relative;
+    }
+    .phone-shell::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 10px;
+      width: 92px;
+      height: 20px;
+      transform: translateX(-50%);
+      border-radius: 0 0 16px 16px;
+      background: #060a10;
+      z-index: 2;
+      box-shadow: inset 0 -1px 0 rgba(255,255,255,0.08);
+    }
+    .phone-screen {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      border-radius: 31px;
+      background: #f8fafc;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .phone-screen iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      display: block;
+      background: #f8fafc;
+    }
+    .hidden-bridge-state {
+      display: none;
+    }
+    .card {
+      background: #121c2a;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 28px;
+      text-align: center;
+      box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+    }
+    h2 { margin: 0 0 8px; font-size: 30px; }
+    .sub { margin: 0; color: #93a4b8; }
+    .status {
+      margin: 18px 0 10px;
+      padding: 12px;
+      background: #1e3a5f;
+      border-radius: 10px;
+      font-size: 14px;
+      color: #93c5fd;
+      text-align: left;
+    }
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 9px 11px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+    .status-ok { color: #4ade80; }
+    .status-bad { color: #f87171; }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 7px;
+      box-shadow: 0 0 16px #22c55e;
+    }
+    button {
+      border: 0;
+      cursor: pointer;
+      color: white;
+      font-weight: 700;
+      font-size: 15px;
+    }
+    .btn-unlock {
+      width: 62px;
+      height: 62px;
+      padding: 0;
+      border-radius: 50%;
+      background: #2563eb;
+      box-shadow: 0 0 28px rgba(37,99,235,0.45), inset 0 1px 0 rgba(255,255,255,0.24);
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .btn-unlock:hover {
+      transform: translateY(-1px);
+    }
+    .btn-unlock.sound-on {
+      background: #22c55e;
+      box-shadow: 0 0 30px rgba(34,197,94,0.48), inset 0 1px 0 rgba(255,255,255,0.24);
+    }
+    .receiver-card-floating {
+      position: absolute;
+      right: 24px;
+      top: 24px;
+      z-index: 8;
+      width: min(300px, calc(100% - 48px));
+      padding: 18px;
+      border-radius: 22px;
+      text-align: left;
+      background: rgba(12, 23, 36, 0.82);
+      border: 1px solid rgba(255,255,255,0.11);
+      box-shadow: 0 22px 70px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08);
+      backdrop-filter: blur(16px);
+    }
+    .receiver-card-floating h2 {
+      font-size: 25px;
+      margin: 0 0 7px;
+    }
+    .receiver-card-floating .sub {
+      margin-bottom: 0;
+    }
+    .receiver-card-head {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: center;
+    }
+    .connection-dots {
+      display: flex;
+      gap: 13px;
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .connection-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(226,232,240,0.78);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+    .connection-dot::before {
+      content: '';
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 14px rgba(239,68,68,0.58);
+    }
+    .connection-dot.on::before {
+      background: #22c55e;
+      box-shadow: 0 0 16px rgba(34,197,94,0.68);
+    }
+    .main-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .action-btn {
+      min-height: 78px;
+      padding: 14px;
+      border-radius: 14px;
+      background: linear-gradient(180deg, #13283a, #0d2030);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .action-btn.talk { color: #7db9ff; }
+    .action-btn.sos { color: #ff736b; }
+    .action-btn.lunara { grid-column: 1 / -1; color: #c4a6ff; }
+    .inbox {
+      display: none;
+      margin-top: 18px;
+      padding: 16px;
+      border-radius: 14px;
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 20px;
+      font-weight: 800;
+      text-align: center;
+    }
+    .log {
+      margin-top: 18px;
+      max-height: 210px;
+      overflow-y: auto;
+      padding: 14px;
+      border-radius: 14px;
+      background: rgba(0,0,0,0.22);
+      color: #a8b3c2;
+      font-size: 13px;
+      text-align: left;
+      line-height: 1.45;
+    }
+    .log div { padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .stage {
+      position: relative;
+      min-width: 0;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 48% 35%, rgba(47,140,255,0.18), transparent 30%),
+        radial-gradient(circle at 82% 48%, rgba(255,128,52,0.08), transparent 22%),
+        linear-gradient(180deg, #03090f, #071018 62%, #030609);
+    }
+    .wood {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -8px;
+      height: 35vh;
+      background:
+        repeating-linear-gradient(8deg, rgba(255,210,140,0.09) 0 2px, transparent 2px 34px),
+        linear-gradient(180deg, #4b2915, #241006 54%, #100705);
+      box-shadow: inset 0 28px 80px rgba(0,0,0,0.45), 0 -20px 70px rgba(0,0,0,0.48);
+    }
+    .photo {
+      position: absolute;
+      right: 5vw;
+      bottom: 31vh;
+      width: 140px;
+      height: 185px;
+      transform: rotate(-2deg);
+      border: 12px solid #6b3718;
+      border-radius: 5px;
+      background:
+        radial-gradient(circle at 50% 34%, #9b6d4d 0 11%, transparent 12%),
+        radial-gradient(ellipse at 50% 70%, #4b2b20 0 28%, transparent 29%),
+        linear-gradient(135deg, #1c1510, #4b2a18);
+      opacity: 0.48;
+      box-shadow: 0 12px 50px rgba(0,0,0,0.46);
+    }
+    .dashboard-preview {
+      position: absolute;
+      top: 22px;
+      left: clamp(26px, 4.5vw, 72px);
+      width: clamp(240px, 28vw, 360px);
+      aspect-ratio: 15 / 10;
+      z-index: 3;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.22);
+      box-shadow: 0 16px 46px rgba(0,0,0,0.38), 0 0 0 1px rgba(41,132,255,0.08);
+      opacity: 0.88;
+      pointer-events: none;
+      background: rgba(255,255,255,0.08);
+    }
+    .dashboard-preview img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+    #voicebridge-3d {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      cursor: grab;
+    }
+    #voicebridge-3d:active { cursor: grabbing; }
+    .floating-stack {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+    }
+    .floating-card {
+      position: absolute;
+      min-width: 215px;
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 13px;
+      align-items: center;
+      padding: 17px;
+      border-radius: 18px;
+      color: white;
+      border: 1px solid rgba(255,255,255,0.16);
+      box-shadow: 0 0 34px var(--glow), inset 0 1px 0 rgba(255,255,255,0.14);
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+      animation: cardIn 5s ease forwards;
+    }
+    .floating-card.blue { --glow: rgba(47,140,255,0.38); left: 18%; top: 7%; background: linear-gradient(135deg, rgba(30,92,174,0.92), rgba(19,63,123,0.78)); }
+    .floating-card.green { --glow: rgba(53,212,131,0.32); left: 20%; top: 24%; background: linear-gradient(135deg, rgba(25,119,78,0.88), rgba(18,85,61,0.76)); }
+    .floating-card.delivered { --glow: rgba(66,230,108,0.32); right: 20%; top: 25%; background: linear-gradient(135deg, rgba(34,139,63,0.88), rgba(20,88,46,0.76)); }
+    .floating-card.red { --glow: rgba(255,59,48,0.35); right: 28%; top: 21%; background: linear-gradient(135deg, rgba(144,37,31,0.9), rgba(90,25,23,0.78)); }
+    .floating-card.orange { --glow: rgba(245,158,11,0.38); right: 24%; top: 18%; background: linear-gradient(135deg, rgba(180,83,9,0.92), rgba(120,53,15,0.8)); border-color: rgba(251,191,36,0.34); }
+    .floating-card.violet { --glow: rgba(185,140,255,0.46); left: 58%; top: 15%; background: linear-gradient(135deg, rgba(124,58,237,0.94), rgba(76,29,149,0.86)); border-color: rgba(216,180,254,0.42); }
+    .floating-card.gray { --glow: rgba(148,163,184,0.22); right: 20%; top: 12%; background: linear-gradient(135deg, rgba(70,80,95,0.88), rgba(35,42,52,0.78)); }
+    @keyframes cardIn {
+      0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+      10%, 78% { opacity: 1; transform: translateY(0) scale(1); }
+      100% { opacity: 0; transform: translateY(-12px) scale(0.98); }
+    }
+    .card-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      background: rgba(255,255,255,0.14);
+    }
+    .card-icon.person {
+      color: #f8fafc;
+      background: rgba(255,255,255,0.17);
+      font-size: 14px;
+      letter-spacing: 0;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.16);
+    }
+    .card-title { font-size: 20px; line-height: 1.15; font-weight: 800; margin-bottom: 7px; }
+    .floating-card.has-detail .card-title {
+      margin-bottom: 5px;
+      color: #b7ead2;
+      font-size: 12px;
+      line-height: 1.15;
+      font-weight: 850;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .card-detail {
+      max-width: 230px;
+      margin-top: 1px;
+      color: #ffffff;
+      font-size: 24px;
+      line-height: 1.08;
+      font-weight: 900;
+      text-shadow: 0 1px 14px rgba(255,255,255,0.18);
+    }
+    .card-time { color: rgba(255,255,255,0.78); }
+    .pads {
+      position: absolute;
+      left: 50%;
+      bottom: 22px;
+      z-index: 6;
+      display: none;
+      gap: clamp(24px, 4vw, 58px);
+      transform: translateX(-50%);
+    }
+    .pad {
+      width: 124px;
+      height: 124px;
+      border-radius: 50%;
+      border: 1px solid currentColor;
+      color: #72b3ff;
+      background: radial-gradient(circle, rgba(47,140,255,0.22), rgba(47,140,255,0.06) 58%, rgba(47,140,255,0.03));
+      box-shadow: 0 0 34px rgba(47,140,255,0.24), inset 0 0 28px rgba(47,140,255,0.12);
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: 8px;
+      text-align: center;
+      font-size: 17px;
+      line-height: 1.1;
+      backdrop-filter: blur(10px);
+    }
+    .pad.red { color: #ff5a50; background: radial-gradient(circle, rgba(255,59,48,0.24), rgba(255,59,48,0.08) 58%, rgba(255,59,48,0.03)); box-shadow: 0 0 34px rgba(255,59,48,0.22), inset 0 0 28px rgba(255,59,48,0.12); }
+    .pad.violet { color: #b98cff; background: radial-gradient(circle, rgba(139,92,246,0.25), rgba(139,92,246,0.08) 58%, rgba(139,92,246,0.03)); box-shadow: 0 0 34px rgba(139,92,246,0.26), inset 0 0 28px rgba(139,92,246,0.12); }
+    .pad.selected {
+      transform: translateY(-10px) scale(1.04);
+      box-shadow: 0 0 52px currentColor, inset 0 0 34px rgba(255,255,255,0.14);
+    }
+    .pad strong { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: currentColor; color: white; box-shadow: 0 0 22px currentColor; }
+    .gesture-drop {
+      position: fixed;
+      z-index: 20;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      pointer-events: none;
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.76);
+      background: currentColor;
+      box-shadow: 0 0 28px currentColor, 0 0 60px currentColor;
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+    .gesture-drop.show { opacity: 0.76; transform: translate(-50%, -50%) scale(1); }
+    .bracelet-widget {
+      position: absolute;
+      top: 188px;
+      right: 54px;
+      z-index: 7;
+      width: 188px;
+      height: 188px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 42% 30%, rgba(255,255,255,0.34), transparent 32%),
+        radial-gradient(circle, #9aa1aa, #636b75 62%, #3f4650);
+      border: 1px solid rgba(255,255,255,0.20);
+      box-shadow: 0 22px 48px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.42);
+      filter: drop-shadow(0 24px 28px rgba(0,0,0,0.34));
+      overflow: hidden;
+    }
+    .bracelet-widget::before {
+      display: none;
+    }
+    .bracelet-widget::after {
+      display: none;
+    }
+    .bracelet-band {
+      position: absolute;
+      left: 18px;
+      right: 18px;
+      top: 78px;
+      height: 34px;
+      border-radius: 18px;
+      background:
+        linear-gradient(90deg, #090a0c, #22252b 18%, #0b0c10 50%, #22252b 82%, #090a0c),
+        linear-gradient(180deg, #2b2e33, #111318 55%, #06070a);
+      box-shadow:
+        inset 0 3px 5px rgba(255,255,255,0.14),
+        inset 0 -6px 10px rgba(0,0,0,0.55),
+        0 6px 18px rgba(0,0,0,0.38);
+      z-index: 1;
+    }
+    .bracelet-band::before,
+    .bracelet-band::after {
+      content: '';
+      position: absolute;
+      top: 10px;
+      width: 21px;
+      height: 12px;
+      border-radius: 6px;
+      background: #050608;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.05),
+        inset 0 1px 2px rgba(255,255,255,0.12);
+      opacity: 0.9;
+    }
+    .bracelet-band::before { left: 10px; }
+    .bracelet-band::after { right: 10px; }
+    .bracelet-core {
+      position: relative;
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 38% 28%, rgba(255,255,255,0.16), transparent 24%),
+        radial-gradient(circle, #373a40, #191c21 63%, #08090c);
+      display: grid;
+      place-items: center;
+      box-shadow:
+        inset 0 4px 12px rgba(255,255,255,0.16),
+        inset 0 -10px 18px rgba(0,0,0,0.55),
+        0 10px 28px rgba(0,0,0,0.48),
+        0 0 0 8px rgba(0,0,0,0.14);
+      z-index: 2;
+    }
+    .bracelet-sos {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      border: 3px solid rgba(0,0,0,0.28);
+      background:
+        radial-gradient(circle at 36% 28%, rgba(255,255,255,0.24), transparent 20%),
+        radial-gradient(circle, #e6342d, #9f0f10 68%, #4b0606);
+      color: transparent;
+      font-size: 0;
+      letter-spacing: 0;
+      box-shadow: 0 0 18px rgba(255,59,48,0.48), inset 0 0 12px rgba(60,0,0,0.62);
+      position: relative;
+    }
+    .bracelet-sos::before {
+      content: '';
+      position: absolute;
+      inset: 11px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, rgba(0,0,0,0.34) 0 2px, transparent 3px),
+        radial-gradient(circle at 68% 30%, rgba(0,0,0,0.34) 0 2px, transparent 3px),
+        radial-gradient(circle at 50% 50%, rgba(0,0,0,0.34) 0 2px, transparent 3px),
+        radial-gradient(circle at 32% 70%, rgba(0,0,0,0.34) 0 2px, transparent 3px),
+        radial-gradient(circle at 68% 70%, rgba(0,0,0,0.34) 0 2px, transparent 3px);
+    }
+    .bracelet-sos:active {
+      transform: scale(0.94);
+      box-shadow: 0 0 34px rgba(255,59,48,0.78), inset 0 0 16px rgba(60,0,0,0.7);
+    }
+    .bracelet-waves {
+      position: absolute;
+      top: 5px;
+      left: 50%;
+      width: 80px;
+      height: 54px;
+      transform: translateX(-50%);
+      pointer-events: none;
+      overflow: visible;
+    }
+    .bracelet-waves.down {
+      top: auto;
+      bottom: 5px;
+      transform: translateX(-50%) rotate(180deg);
+    }
+    .bracelet-waves span {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%) scaleX(0.72) scaleY(0.9);
+      transform-origin: 50% 100%;
+      border-top: 8px solid #139df2;
+      border-radius: 50%;
+      opacity: 0.34;
+      animation: braceletSignal 2.8s ease-in-out infinite;
+      filter: drop-shadow(0 0 9px rgba(19,157,242,0.55));
+    }
+    .bracelet-waves span:nth-child(1) { top: 0; width: 42px; height: 18px; animation-delay: 0s; }
+    .bracelet-waves span:nth-child(2) { top: 16px; width: 62px; height: 26px; animation-delay: 0.34s; }
+    .bracelet-waves span:nth-child(3) { top: 34px; width: 82px; height: 34px; animation-delay: 0.68s; }
+    @keyframes braceletSignal {
+      0% { opacity: 0.22; transform: translateX(-50%) translateY(4px) scaleX(0.58) scaleY(0.78); }
+      38% { opacity: 0.92; transform: translateX(-50%) translateY(0) scaleX(1.04) scaleY(1); }
+      68% { opacity: 0.58; transform: translateX(-50%) translateY(-3px) scaleX(1.18) scaleY(1.05); }
+      100% { opacity: 0.20; transform: translateX(-50%) translateY(-5px) scaleX(0.7) scaleY(0.88); }
+    }
+    .help {
+      position: absolute;
+      right: 30px;
+      bottom: 205px;
+      z-index: 6;
+      display: grid;
+      gap: 22px;
+      color: rgba(255,255,255,0.82);
+      font-size: 16px;
+      pointer-events: none;
+    }
+    @media (max-width: 980px) {
+      body { display: block; overflow-y: auto; }
+      .left { min-height: 760px; }
+      .phone-shell { height: 720px; }
+      .stage { height: 700px; }
+      .help { display: none; }
+      .bracelet-widget { transform: scale(0.78); transform-origin: top right; right: 12px; top: 28px; }
+      .receiver-card-floating { position: relative; right: auto; top: auto; margin: 16px auto 0; }
+      .dashboard-preview { top: 110px; left: 16px; width: min(72vw, 320px); }
+    }
+  </style>
+</head>
+<body>
+  <aside class="left">
+    <div class="phone-shell" aria-label="VoiceBridge phone preview">
+      <div class="phone-screen">
+        <iframe src="/index.html?desktopPreview=1" title="VoiceBridge mobile app" allow="microphone; autoplay"></iframe>
+      </div>
+    </div>
+  </aside>
+
+  <main class="stage">
+    <section class="receiver-card-floating">
+      <div class="receiver-card-head">
+        <div>
+          <h2>VoiceBridge</h2>
+          <p class="sub">&#1059;&#1089;&#1090;&#1088;&#1086;&#1081;&#1089;&#1090;&#1074;&#1086; &#1087;&#1086;&#1083;&#1091;&#1095;&#1072;&#1090;&#1077;&#1083;&#1103;</p>
+        </div>
+        <button class="btn-unlock" id="unlock-btn" onclick="unlock()">&#1047;&#1042;&#1059;&#1050;</button>
+      </div>
+      <div class="connection-dots" aria-label="Connection status">
+        <span class="connection-dot" id="sender-indicator">&#1058;&#1077;&#1083;&#1077;&#1092;&#1086;&#1085;</span>
+        <span class="connection-dot" id="receiver-indicator">&#1059;&#1089;&#1090;&#1088;&#1086;&#1081;&#1089;&#1090;&#1074;&#1086;</span>
+      </div>
+    </section>
+    <div class="hidden-bridge-state" aria-hidden="true">
+      <span id="status">&#1055;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1077;&#1085;&#1080;&#1077;...</span>
+      <span id="sender-status" class="status-bad">&#1085;&#1077; &#1087;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1077;&#1085;&#1086;</span>
+      <span id="receiver-status" class="status-bad">&#1087;&#1086;&#1076;&#1082;&#1083;&#1102;&#1095;&#1072;&#1077;&#1090;&#1089;&#1103;</span>
+      <div id="inbox"></div>
+      <div id="log"></div>
+    </div>
+    <figure class="dashboard-preview" aria-label="VoiceBridge monitoring dashboard preview">
+      <img src="/assets/voicebridge-care-preview.jpg" alt="VoiceBridge Care voice connection preview"/>
+    </figure>
+    <div class="photo"></div>
+    <div class="wood"></div>
+    <div id="voicebridge-3d"></div>
+    <div class="floating-stack" id="floating-stack"></div>
+    <div class="gesture-drop" id="gesture-drop"></div>
+    <div class="bracelet-widget" aria-label="SOS браслет">
+      <div class="bracelet-waves"><span></span><span></span><span></span></div>
+      <div class="bracelet-waves down"><span></span><span></span><span></span></div>
+      <div class="bracelet-band"></div>
+      <div class="bracelet-core">
+        <button class="bracelet-sos" id="bracelet-sos" type="button">SOS</button>
+      </div>
+    </div>
+    <div class="pads">
+      <button class="pad" data-device-action="wants_to_talk"><strong>☎</strong><span>Хочу<br/>поговорить</span></button>
+      <button class="pad red" data-device-action="help_request"><strong>SOS</strong><span>Нужна<br/>помощь</span></button>
+      <button class="pad violet" data-device-action="lunara_start"><strong>✦</strong><span>Lunara</span></button>
+    </div>
+  </main>
+
+  <script>
+    let audioCtx = null;
+
+    function currentTime() {
+      const now = new Date();
+      return now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+    }
+
+    const MESSAGE_PLAY_DELAY_MS = 1200;
+    const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+    function log(msg) {
+      const el = document.getElementById('log');
+      el.innerHTML = '<div>→ ' + currentTime() + ' · ' + msg + '</div>' + el.innerHTML;
+    }
+
+    function setConnectionStatus(data) {
+      const sender = document.getElementById('sender-status');
+      const receiver = document.getElementById('receiver-status');
+      const senderIndicator = document.getElementById('sender-indicator');
+      const receiverIndicator = document.getElementById('receiver-indicator');
+      sender.textContent = data.senderConnected ? ((data.senderCount || 1) + ' подключено') : 'не подключено';
+      sender.className = data.senderConnected ? 'status-ok' : 'status-bad';
+      receiver.textContent = data.receiverConnected ? 'подключено' : 'не подключено';
+      receiver.className = data.receiverConnected ? 'status-ok' : 'status-bad';
+      if (senderIndicator) senderIndicator.classList.toggle('on', Boolean(data.senderConnected));
+      if (receiverIndicator) receiverIndicator.classList.toggle('on', Boolean(data.receiverConnected));
+    }
+
+    function unlock() {
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      audioCtx.resume();
+      const unlockBtn = document.getElementById('unlock-btn');
+      unlockBtn.classList.add('sound-on');
+      unlockBtn.textContent = 'OK';
+      log('Звук активирован');
+    }
+
+    function ensureAudioContext() {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      return audioCtx;
+    }
+
+    function playPhoneSignal(type) {
+      try {
+        const ctx = ensureAudioContext();
+        if (type === 'lunara') {
+          [0, 0.11, 0.23].forEach((t, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime([523, 784, 1175][i], ctx.currentTime + t);
+            gain.gain.setValueAtTime(0, ctx.currentTime + t);
+            gain.gain.linearRampToValueAtTime(0.22, ctx.currentTime + t + 0.035);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.45);
+            osc.start(ctx.currentTime + t);
+            osc.stop(ctx.currentTime + t + 0.48);
+          });
+          return;
+        }
+        if (type === 'sos') {
+          [0, 0.3, 0.6].forEach(t => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.frequency.value = 660;
+            gain.gain.setValueAtTime(0.5, ctx.currentTime + t);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + t + 0.2);
+            osc.start(ctx.currentTime + t);
+            osc.stop(ctx.currentTime + t + 0.2);
+          });
+          return;
+        }
+        if (type === 'sos_long') {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sawtooth';
+          const start = ctx.currentTime;
+          for (let i = 0; i <= 12; i += 1) {
+            const t = start + i * 0.25;
+            const freq = i % 2 === 0 ? 520 : 920;
+            osc.frequency.linearRampToValueAtTime(freq, t + 0.12);
+          }
+          gain.gain.setValueAtTime(0, start);
+          for (let i = 0; i < 3; i += 1) {
+            const t = start + i;
+            gain.gain.linearRampToValueAtTime(0.09, t + 0.04);
+            gain.gain.linearRampToValueAtTime(0.34, t + 0.42);
+            gain.gain.linearRampToValueAtTime(0.13, t + 0.72);
+            gain.gain.linearRampToValueAtTime(0.08, t + 0.96);
+          }
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 3.05);
+          osc.start(start);
+          osc.stop(start + 3.1);
+          return;
+        }
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
+        gain.gain.setValueAtTime(0.4, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.8);
+      } catch(e) {}
+    }
+
+    function playChime(type) {
+      let ctx;
+      try {
+        ctx = ensureAudioContext();
+      } catch(e) {
+        return delay(type === 'voice' ? 450 : 350);
+      }
+      return new Promise(resolve => {
+        const notes = type === 'voice' ? [523, 659, 784] : [784, 659];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = type === 'voice' ? 'sine' : 'triangle';
+          osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.13;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(0.25, t + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+          osc.start(t);
+          osc.stop(t + 0.6);
+        });
+        setTimeout(resolve, type === 'voice' ? 450 : 350);
+      });
+    }
+
+    function playDirectLineTone(kind = 'start') {
+      try {
+        const ctx = ensureAudioContext();
+        const start = ctx.currentTime;
+        const notes = kind === 'end' ? [520, 392] : [392, 588, 784];
+        notes.forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = kind === 'end' ? 'triangle' : 'sine';
+          const t = start + i * (kind === 'end' ? 0.16 : 0.12);
+          osc.frequency.setValueAtTime(freq, t);
+          gain.gain.setValueAtTime(0.001, t);
+          gain.gain.linearRampToValueAtTime(kind === 'end' ? 0.12 : 0.2, t + 0.035);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + (kind === 'end' ? 0.38 : 0.5));
+          osc.start(t);
+          osc.stop(t + (kind === 'end' ? 0.42 : 0.54));
+        });
+      } catch(e) {}
+    }
+
+    function getSpeechText(text) {
+      return String(text || '')
+        .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+
+    function speakPhrase(text) {
+      const phrase = getSpeechText(text);
+      if (!phrase || !('speechSynthesis' in window)) return;
+
+      const utterance = new SpeechSynthesisUtterance(phrase);
+      const voices = speechSynthesis.getVoices();
+      const ruVoice = voices.find(voice => voice.lang && voice.lang.toLowerCase().startsWith('ru'));
+      if (ruVoice) utterance.voice = ruVoice;
+      utterance.lang = 'ru-RU';
+      utterance.rate = 0.95;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utterance);
+    }
+
+    function speakText(text) {
+      speakPhrase(text);
+    }
+
+    function showInbox(text) {
+      const el = document.getElementById('inbox');
+      el.textContent = text;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 5200);
+    }
+
+    function showFloatingCard(kind, title, time, detail, iconOverride) {
+      const stack = document.getElementById('floating-stack');
+      const card = document.createElement('div');
+      card.className = 'floating-card ' + kind + (detail ? ' has-detail' : '');
+      const iconText = iconOverride || (kind === 'red' ? 'SOS' : kind === 'violet' ? 'L' : (kind === 'green' || kind === 'blue') ? 'Сын' : kind === 'delivered' ? '✓' : kind === 'gray' ? '!' : 'C');
+      const personClass = iconOverride || kind === 'green' || kind === 'blue' ? ' person' : '';
+      const detailHtml = detail ? '<div class="card-detail">' + detail + '</div>' : '';
+      card.innerHTML = '<div class="card-icon' + personClass + '">' + iconText + '</div><div><div class="card-title">' + title + '</div>' + detailHtml + '<div class="card-time">' + time + '</div></div>';
+      stack.appendChild(card);
+      setTimeout(() => {
+        card.remove();
+      }, 5200);
+    }
+
+    function applyProfileSync(values) {
+      if (!values || typeof values !== 'object') return;
+      Object.entries(values).forEach(([key, value]) => {
+        if (typeof key === 'string' && key.startsWith('vb-') && typeof value === 'string') {
+          localStorage.setItem(key, value);
+        }
+      });
+      const phoneFrame = document.querySelector('.phone-screen iframe');
+      if (phoneFrame) phoneFrame.contentWindow?.postMessage({ type: 'profile_sync_applied' }, location.origin);
+      log('Профиль синхронизирован с телефона');
+    }
+
+    function scheduleReconnect() {
+      if (_wsIntentionalClose) return;
+      clearTimeout(_wsReconnectTimer);
+      _wsReconnectTimer = setTimeout(() => {
+        log('Попытка переподключения...');
+        connectWS();
+      }, _wsReconnectDelay);
+      // Exponential backoff: 1s → 2s → 4s → 8s → 16s → 30s (max)
+      _wsReconnectDelay = Math.min(_wsReconnectDelay * 2, 30000);
+    }
+
+        // ── WebSocket с автореконнектом ─────────────────────────────────────────
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let ws = null;
+    let _wsReconnectDelay = 1000;
+    let _wsReconnectTimer = null;
+    let _wsIntentionalClose = false;
+
+    function connectWS() {
+      if (_wsIntentionalClose) return;
+      try { ws = new WebSocket(protocol + '//' + location.host); } catch(e) { scheduleReconnect(); return; }
+
+      ws.onopen = () => {
+        _wsReconnectDelay = 1000; // сброс backoff при успешном подключении
+        window.voiceBridgeConnected = true;
+        ws.send(JSON.stringify({ type: 'register', role: 'receiver' }));
+        document.addEventListener('pointerdown', function unlockAudio(){
+          try{ const ctx=new(window.AudioContext||window.webkitAudioContext)(); ctx.resume(); ctx.close(); }catch(e){}
+          document.removeEventListener('pointerdown', unlockAudio);
+        }, {once:true});
+        document.getElementById('status').textContent = 'Устройство подключено';
+        window.voiceBridge3D?.handleDeviceAction('idle');
+        log('WebSocket подключен как receiver');
+      };
+
+      ws.onclose = (e) => {
+        window.voiceBridgeConnected = false;
+        document.getElementById('status').textContent = 'Нет соединения... Переподключение';
+        window.voiceBridge3D?.handleDeviceAction('offline');
+        setConnectionStatus({ senderConnected: false, receiverConnected: false });
+        log('WebSocket закрыт (код ' + e.code + '). Переподключение через ' + (_wsReconnectDelay/1000) + ' сек');
+        scheduleReconnect();
+      };
+
+      ws.onerror = () => {
+        log('Ошибка WebSocket');
+        // onclose будет вызван автоматически после onerror
+      };
+
+      ws.onmessage = async (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'connection_status') {
+        setConnectionStatus(data);
+        log('Статус: телефонов=' + (data.senderCount || 0) + ', устройство=' + (data.receiverConnected ? 'да' : 'нет'));
+        return;
+      }
+      if (data.type === 'profile_sync') {
+        applyProfileSync(data.values);
+        return;
+      }
+      if (data.type === 'sos_acknowledged') {
+        window.voiceBridge3D?.handleDeviceAction('sos_acknowledged');
+        log('SOS услышан родственником');
+        return;
+      }
+      /* PATCH:deviceLlHandlers */
+      /* PATCH:deviceWarning */
+      if(data.type==='live_line_warning'){try{_deviceWarningBeep();}catch(e){window._deviceWarningBeep&&window._deviceWarningBeep();}}
+      if(data.type==='live_line_start'){
+        console.log('[VB] live_line_start received, setting green state');
+        window.voiceBridge3D?.setLiveLineActive();
+        clearInterval(window._llGreenInterval);
+        window._llDeviceActive = true;
+        window._llGreenInterval = setInterval(()=>{
+          if(!window._llDeviceActive){ clearInterval(window._llGreenInterval); return; }
+          window.voiceBridge3D?.startDomeColorPulse('direct_line_active', 2400);
+        }, 2000);
+        startDeviceLlAudio();
+      }
+      if(data.type==='live_line_ended'){
+        console.log('[VB] live_line_ended received, resetting state');
+        window._llDeviceActive = false;
+        clearInterval(window._llGreenInterval);
+        window.voiceBridge3D?.setLiveLineIdle();
+        stopDeviceLlAudio();
+      }
+      if(data.type==='live_audio_chunk'&&data.audio){playDeviceLlChunk(data.audio);}
+      if(data.type==='remind_later_ack'){
+        const n=data.senderName||localStorage.getItem('vb-my-name')||'Алексей';
+        const mins=data.minutes||'';
+        const minWord = mins==1?'минуту':mins>=2&&mins<=4?'минуты':'минут';
+        speakText(n+' ответит через '+mins+' '+minWord+'. Он увидел твоё сообщение.');
+        window.voiceBridge3D?.setState('remind_later');
+        window.voiceBridge3D?.startDomeColorPulse('remind_later', 6000);
+        setTimeout(()=>window.voiceBridge3D?.setState('idle'), 8000);
+      }
+      if (data.type === 'direct_line_request') {
+        window.voiceBridge3D?.handleDeviceAction('direct_line_request');
+        showFloatingCard('green', 'Прямая<br/>связь', currentTime(), 'Коснитесь устройства, чтобы ответить');
+        log('Запрос прямой связи');
+        return;
+      }
+      if (data.type === 'direct_line_cancel') {
+        window.voiceBridge3D?.handleDeviceAction('direct_line_cancel');
+        log('Прямая связь отменена');
+        return;
+      }
+      if (data.type === 'audio_message' || data.type === 'reply_message' || data.type === 'voice_message') {
+        window.voiceBridge3D?.handleDeviceAction('voice_message');
+        const spokenText = getSpeechText(data.text || data.transcript || '');
+        const messageText = spokenText || (data.audio || data.audio_url ? 'Голосовое сообщение' : 'Текст не распознан');
+        showInbox('Голосовое сообщение');
+        showFloatingCard('blue', 'ГОЛОСОВОЕ<br/>СООБЩЕНИЕ', currentTime(), messageText);
+        log('Получено голосовое сообщение');
+        await playChime('voice');
+        await delay(MESSAGE_PLAY_DELAY_MS);
+        if (data.audio) {
+          const blob = base64ToBlob(data.audio, data.mimeType);
+          new Audio(URL.createObjectURL(blob)).play();
+        } else if (data.audio_url) {
+          new Audio(data.audio_url).play();
+        } else if (spokenText) {
+          speakPhrase(spokenText);
+        }
+      }
+      if (data.type === 'phrase_message') {
+        window.voiceBridge3D?.handleDeviceAction('phrase_message');
+        showInbox('Фраза: ' + data.text);
+        showFloatingCard('green', 'Голосовое<br/>сообщение', currentTime(), data.text);
+        log('Получена фраза: ' + data.text);
+        await playChime('phrase');
+        await delay(MESSAGE_PLAY_DELAY_MS);
+        speakPhrase(data.text);
+      }
+    };
+
+    function sendEvent(eventName, serverType) {
+      console.log('VoiceBridge event:', eventName);
+      if (ws.readyState !== WebSocket.OPEN) {
+        log('Не отправлено: WebSocket не подключен');
+        return;
+      }
+      ws.send(JSON.stringify({ type: serverType || eventName }));
+    }
+
+    function sendWantsToTalk() {
+      sendEvent('wants_to_talk', 'dad_wants_to_talk');
+      window.voiceBridge3D?.handleDeviceAction('wants_to_talk');
+      showFloatingCard('blue', 'Запрос<br/>отправлен', currentTime(), 'Хочу поговорить', 'Папа');
+      log('Отправлено: хочу поговорить');
+    }
+
+    function sendSOS() {
+      sendEvent('help_request');
+      window.voiceBridge3D?.handleDeviceAction('help_request');
+      showFloatingCard('red', 'Нужна<br/>помощь', currentTime());
+      setTimeout(() => showFloatingCard('red', 'Сигнал<br/>отправлен', currentTime()), 900);
+      log('Отправлено: SOS');
+    }
+
+    let lunaraPromptTimer = null;
+
+    function sendLunara() {
+      sendEvent('lunara_start');
+      window.voiceBridge3D?.handleDeviceAction('lunara_start');
+      clearTimeout(lunaraPromptTimer);
+      lunaraPromptTimer = setTimeout(() => {
+        showFloatingCard('violet', 'Lunara<br/>слушает', currentTime());
+        speakPhrase('Лунара слушает, говорите');
+      }, MESSAGE_PLAY_DELAY_MS);
+      log('Отправлено: Lunara');
+    }
+
+    // Expose to window so module script can call them
+    window.sendWantsToTalk = sendWantsToTalk;
+    window.sendSOS         = sendSOS;
+    window.sendLunara      = sendLunara;
+    window.sendEvent       = sendEvent;
+
+    function base64ToBlob(b64, mime) {
+      const bytes = atob(b64);
+      const arr = new Uint8Array(bytes.length);
+      for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+      return new Blob([arr], { type: mime });
+    }
+    }; // конец ws.onmessage + connectWS
+
+    connectWS(); // первое подключение
+  </script>
+
+  <script type="module">
+    import * as THREE from '/vendor/three/build/three.module.js';
+    import { OrbitControls } from '/vendor/three/examples/jsm/controls/OrbitControls.js';
+
+    const root = document.getElementById('voicebridge-3d');
+    const DEVICE_BASE_SCALE = 0.86;
+    const colors = {
+      idle: 0xffdca8,
+      offline: 0x94a3b8,
+      delivered: 0x42e66c,
+      message_delivered: 0x42e66c,
+      voice: 0x2f8cff,
+      voice_message: 0x2f8cff,
+      phrase_message: 0x35d483,
+      sos_pending: 0xf59e0b,
+      help_request: 0xff3b30,
+      wants_to_talk: 0x67d7ff,
+      confirm_talk: 0x67d7ff,
+      direct_line_request: 0x74e28e,
+      direct_line_waiting: 0x74e28e,
+      direct_line_active: 0x22c55e,
+      listening: 0x61b8ff,
+      lunara_start: 0xb14cff,
+      lunara_speaking: 0xb14cff
+    };
+    const domeColors = {
+      idle: 0xfff4e5,
+      offline: 0xd4d8df,
+      delivered: 0xdfffe7,
+      message_delivered: 0xdfffe7,
+      voice: 0xdbeaff,
+      voice_message: 0x8fc4ff,
+      phrase_message: 0x89f2b1,
+      sos_pending: 0xffe3b0,
+      help_request: 0xffd9d6,
+      wants_to_talk: 0xd7f5ff,
+      confirm_talk: 0xd7f5ff,
+      direct_line_request: 0xdfffe7,
+      direct_line_waiting: 0xdfffe7,
+      direct_line_active: 0xbdf7d0,
+      listening: 0xdcedff,
+      lunara_start: 0xd1a3ff,
+      lunara_speaking: 0xd1a3ff
+    };
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 100);
+    camera.position.set(0, 2.95, 8.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    root.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.enablePan = false;
+    controls.minDistance = 6.1;
+    controls.maxDistance = 10;
+    controls.maxPolarAngle = Math.PI * 0.47;
+    controls.target.set(0, 1.46, 0);
+    controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    controls.touches.ONE = THREE.TOUCH.ROTATE;
+
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x07111d, 2.1));
+    const key = new THREE.DirectionalLight(0xffffff, 3.2);
+    key.position.set(-2.8, 5.2, 3.4);
+    scene.add(key);
+    const blueFill = new THREE.PointLight(0x4d92ff, 5, 10);
+    blueFill.position.set(3.5, 2.2, 2.2);
+    scene.add(blueFill);
+
+    const device = new THREE.Group();
+    device.position.y = -0.18;
+    scene.add(device);
+
+    const plastic = new THREE.MeshPhysicalMaterial({
+      color: 0xffefd0,
+      roughness: 0.42,
+      metalness: 0.01,
+      clearcoat: 0.42,
+      clearcoatRoughness: 0.36,
+      transmission: 0.18,
+      thickness: 0.72,
+      emissive: 0xffd99d,
+      emissiveIntensity: 0.22
+    });
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(1.92, 160, 96), plastic);
+    dome.scale.set(1.18, 0.72, 1.18);
+    dome.position.y = 1.45;
+    device.add(dome);
+
+    const base = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.82, 2.42, 1.06, 10),
+      new THREE.MeshStandardMaterial({ color: 0x26231f, roughness: 0.74, metalness: 0.08, flatShading: true })
+    );
+    base.position.y = 0.31;
+    device.add(base);
+
+    const darkLip = new THREE.Mesh(
+      new THREE.CylinderGeometry(2.45, 2.30, 0.18, 10),
+      new THREE.MeshStandardMaterial({ color: 0x090909, roughness: 0.62, metalness: 0.12, flatShading: true })
+    );
+    darkLip.position.y = -0.25;
+    device.add(darkLip);
+
+    function addFacetPanel(x, y, z, width, height, rotationY, color, opacity = 0.34) {
+      const panel = new THREE.Mesh(
+        new THREE.PlaneGeometry(width, height),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false })
+      );
+      panel.position.set(x, y, z);
+      panel.rotation.y = rotationY;
+      panel.rotation.x = -0.09;
+      device.add(panel);
+      return panel;
+    }
+
+    function placeOnBaseFacet(mesh, angle, y, radius = 2.335, tiltX = -0.09) {
+      mesh.position.set(Math.sin(angle) * radius, y, Math.cos(angle) * radius);
+      mesh.rotation.y = angle;
+      mesh.rotation.x = tiltX;
+      return mesh;
+    }
+
+    // The flat-shaded base already forms the facets; extra panels made the buttons look like stickers.
+
+    const logoTexture = new THREE.TextureLoader().load('/assets/voicebridge-logo.png');
+    logoTexture.colorSpace = THREE.SRGBColorSpace;
+    const logoGlow = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.88, 0.48),
+      new THREE.MeshBasicMaterial({ color: 0x7fb7ff, transparent: true, opacity: 0.18, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    placeOnBaseFacet(logoGlow, Math.PI, 0.40, 2.345, -0.09);
+    logoGlow.renderOrder = 4;
+    device.add(logoGlow);
+    const logo = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.68, 0.38),
+      new THREE.MeshBasicMaterial({ map: logoTexture, transparent: true, opacity: 0.92, depthWrite: false })
+    );
+    placeOnBaseFacet(logo, Math.PI, 0.405, 2.355, -0.09);
+    logo.renderOrder = 5;
+    device.add(logo);
+
+    const ribMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false });
+    for (let i = 0; i < 34; i++) {
+      const angle = (i / 34) * Math.PI * 2;
+      const points = [];
+      for (let j = 0; j <= 28; j++) {
+        const t = -Math.PI * 0.78 + (j / 28) * Math.PI * 1.56;
+        const x = Math.cos(angle) * Math.cos(t) * 2.31;
+        const y = 1.45 + Math.sin(t) * 1.37;
+        const z = Math.sin(angle) * Math.cos(t) * 2.31;
+        if (y > 0.78) points.push(new THREE.Vector3(x, y, z));
+      }
+      const curve = new THREE.CatmullRomCurve3(points);
+      const rib = new THREE.Mesh(new THREE.TubeGeometry(curve, 28, 0.008, 6, false), ribMaterial.clone());
+      rib.material.opacity = 0.10 + Math.max(0, Math.cos(angle)) * 0.08;
+      device.add(rib);
+    }
+
+    function makeSpeakerTexture() {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, 256, 256);
+      ctx.fillStyle = 'rgba(255,255,255,0.34)';
+      ctx.beginPath();
+      ctx.arc(128, 128, 112, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(120,100,95,0.28)';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(92,78,78,0.28)';
+      for (let y = 58; y <= 198; y += 18) {
+        for (let x = 58; x <= 198; x += 18) {
+          if (Math.hypot(x - 128, y - 128) < 94) {
+            ctx.beginPath();
+            ctx.arc(x, y, 4.6, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    }
+
+    const speakerGrille = new THREE.Mesh(
+      new THREE.CircleGeometry(0.38, 72),
+      new THREE.MeshBasicMaterial({ map: makeSpeakerTexture(), transparent: true, opacity: 0.30, depthWrite: false })
+    );
+    speakerGrille.position.set(0, 2.86, 0.04);
+    speakerGrille.rotation.x = -Math.PI / 2;
+    device.add(speakerGrille);
+
+    function makeButtonIconTexture(label, colorHex) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 256;
+      canvas.height = 256;
+      const ctx = canvas.getContext('2d');
+      const color = '#' + colorHex.toString(16).padStart(6, '0');
+      ctx.clearRect(0, 0, 256, 256);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = label === 'SOS' ? 'rgba(255,245,242,0.92)' : 'rgba(255,255,255,0.84)';
+      ctx.font = label === 'SOS' ? '800 42px Arial' : '800 58px Arial';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, 128, 132);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.colorSpace = THREE.SRGBColorSpace;
+      return texture;
+    }
+
+    const physicalButtons = [
+      { action: 'wants_to_talk', label: '\u260E', color: colors.wants_to_talk, angle: -Math.PI / 5 },
+      { action: 'help_request', label: 'SOS', color: colors.help_request, angle: 0 },
+      { action: 'lunara_start', label: '\u2661', color: colors.lunara_start, angle: Math.PI / 5 }
+    ].map(item => {
+      const group = new THREE.Group();
+      placeOnBaseFacet(group, item.angle, 0.34, 2.365, -0.09);
+
+      const recess = new THREE.Mesh(
+        new THREE.CircleGeometry(0.255, 72),
+        new THREE.MeshStandardMaterial({ color: 0x060606, roughness: 0.9, metalness: 0.02 })
+      );
+      recess.position.z = -0.018;
+      group.add(recess);
+
+      const rim = new THREE.Mesh(
+        new THREE.CircleGeometry(0.212, 72),
+        new THREE.MeshStandardMaterial({
+          color: 0x171615,
+          roughness: 0.72,
+          metalness: 0.12,
+          emissive: item.color,
+          emissiveIntensity: 0.025
+        })
+      );
+      rim.position.z = -0.004;
+      group.add(rim);
+
+      const edge = new THREE.Mesh(
+        new THREE.RingGeometry(0.215, 0.232, 72),
+        new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      edge.position.z = 0.002;
+      group.add(edge);
+
+      const icon = new THREE.Mesh(
+        new THREE.PlaneGeometry(0.25, 0.19),
+        new THREE.MeshBasicMaterial({ map: makeButtonIconTexture(item.label, item.color), transparent: true, opacity: 0.88, depthWrite: false })
+      );
+      icon.position.z = 0.009;
+      group.add(icon);
+
+      const hit = new THREE.Mesh(
+        new THREE.CircleGeometry(0.27, 40),
+        new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+      );
+      hit.position.z = 0.018;
+      hit.userData.deviceAction = item.action;
+      hit.userData.color = item.color;
+      hit.userData.buttonRoot = group;
+      hit.userData.birthScale = 1;
+      group.add(hit);
+
+      group.userData.edge = edge;
+      group.userData.rim = rim;
+      device.add(group);
+      return hit;
+    });
+
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: colors.delivered, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending });
+    const baseRing = new THREE.Mesh(new THREE.TorusGeometry(2.30, 0.04, 18, 160), ringMaterial);
+    baseRing.rotation.x = Math.PI / 2;
+    baseRing.position.y = 0.76;
+    device.add(baseRing);
+
+    const glowMaterial = new THREE.MeshBasicMaterial({ color: colors.delivered, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false });
+    const glow = new THREE.Mesh(new THREE.SphereGeometry(1.94, 96, 56), glowMaterial);
+    glow.scale.set(1.20, 0.73, 1.20);
+    glow.position.y = 1.45;
+    device.add(glow);
+
+    const highlight = new THREE.Mesh(
+      new THREE.CircleGeometry(0.5, 48),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.54, depthWrite: false })
+    );
+    highlight.position.set(-1.18, 1.96, 1.2);
+    highlight.rotation.set(-0.65, -0.35, 0.25);
+    highlight.scale.set(0.42, 1, 1);
+    device.add(highlight);
+
+    const hoverRingMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+    const hoverRing = new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.018, 12, 84), hoverRingMaterial);
+    hoverRing.visible = false;
+    device.add(hoverRing);
+
+    function makeSurfaceRing(radius, tube, opacity) {
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(radius, tube, 12, 96),
+        new THREE.MeshBasicMaterial({ color: colors.idle, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      ring.visible = false;
+      device.add(ring);
+      return ring;
+    }
+
+    const touchSpot = new THREE.Mesh(
+      new THREE.CircleGeometry(0.22, 48),
+      new THREE.MeshBasicMaterial({ color: colors.wants_to_talk, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    touchSpot.visible = false;
+    device.add(touchSpot);
+
+    const rippleRings = [makeSurfaceRing(0.22, 0.012, 0), makeSurfaceRing(0.34, 0.012, 0), makeSurfaceRing(0.48, 0.012, 0)];
+    const progressRing = makeSurfaceRing(0.42, 0.018, 0);
+    const surfaceWaves = [makeSurfaceRing(0.32, 0.014, 0), makeSurfaceRing(0.52, 0.014, 0), makeSurfaceRing(0.72, 0.014, 0)];
+
+    const baseWaves = [0, 1, 2].map(i => {
+      const wave = new THREE.Mesh(
+        new THREE.TorusGeometry(2.43 + i * 0.14, 0.018, 12, 180),
+        new THREE.MeshBasicMaterial({ color: colors.voice_message, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })
+      );
+      wave.rotation.x = Math.PI / 2;
+      wave.position.y = 0.69;
+      wave.visible = false;
+      device.add(wave);
+      return wave;
+    });
+
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+    const padButtons = [...document.querySelectorAll('.pad[data-device-action]')];
+    const gestureDrop = document.getElementById('gesture-drop');
+    const braceletSos = document.getElementById('bracelet-sos');
+    const padActions = {
+      wants_to_talk: { state: 'wants_to_talk', color: colors.wants_to_talk, sound: 'bell', send: () => window.sendWantsToTalk?.() },
+      help_request: { state: 'help_request', color: colors.help_request, sound: 'sos', send: () => window.sendSOS?.() },
+      lunara_start: { state: 'lunara_speaking', color: colors.lunara_start, sound: 'lunara', send: () => window.sendLunara?.() }
+    };
+    function setPhysicalButtonScale(button, value) {
+      const root = button?.userData?.buttonRoot || button;
+      if (root) root.scale.setScalar(value);
+    }
+    let hoveredPoint = null;
+    let activePhysicalButton = null;
+    let physicalButtonHoldTimer = null;
+    let physicalButtonHoldSent = false;
+    let autoRotateDevice = true;
+    let currentState = 'offline';
+    let targetDomeColor = new THREE.Color(domeColors.offline);
+    let selectedAction = null;
+    let draggingAction = null;
+    let sosLatched = false;
+    let sosHoldFeedbackTimer = null;
+    let sosHoldStartedAt = 0;
+    let pulseUntil = 0;
+    let colorPulseUntil = 0;
+    let colorPulseColor = new THREE.Color(domeColors.idle);
+    let ringFlashUntil = 0;
+    let waveUntil = 0;
+    let clickPulse = 0;
+    let tapCount = 0;
+    let tapTimer = null;
+    let holdTimer = null;
+    let holdStart = 0;
+    let holdActive = false;
+    let holdTriggered = false;
+    let braceletHoldTimer = null;
+    let braceletSosSent = false;
+    let braceletShortTapArmed = false;
+    let padSosHoldTimer = null;
+    let padSosHoldSent = false;
+    let talkConfirmUntil = 0;
+    let talkConfirmTimer = null;
+    let directLineWaiting = false;
+    let directLineTimers = [];
+    const SOS_HOLD_MS = 5000;
+    let lastTouchPoint = new THREE.Vector3(0, 1.92, 1.6);
+    let lastTouchQuaternion = new THREE.Quaternion();
+
+    function resize() {
+      const rect = root.getBoundingClientRect();
+      renderer.setSize(rect.width, rect.height);
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+    }
+
+    function placeOnSurface(object, point, normalScale = 1.012) {
+      const normal = point.clone().sub(dome.position).normalize();
+      object.position.copy(point).multiplyScalar(normalScale);
+      object.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+    }
+
+    function updateHover(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const buttonHit = raycaster.intersectObjects(physicalButtons, false)[0];
+      if (buttonHit) {
+        hoveredPoint = null;
+        hoverRing.visible = false;
+        physicalButtons.forEach(button => {
+          setPhysicalButtonScale(button, button === buttonHit.object ? 1.05 : 1);
+        });
+        return;
+      }
+      physicalButtons.forEach(button => setPhysicalButtonScale(button, 1));
+      const hit = raycaster.intersectObject(dome, false)[0];
+      hoveredPoint = hit ? device.worldToLocal(hit.point.clone()) : null;
+      if (hoveredPoint) {
+        hoverRing.visible = true;
+        placeOnSurface(hoverRing, hoveredPoint);
+        hoverRing.material.color.setHex(colors.wants_to_talk);
+      } else {
+        hoverRing.visible = false;
+      }
+    }
+
+    function intersectPhysicalButton(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      return raycaster.intersectObjects(physicalButtons, false)[0]?.object || null;
+    }
+
+    function runPhysicalButton(action) {
+      if (action === 'wants_to_talk') {
+        playPhoneSignal('bell');
+        handleDeviceAction('single_tap');
+        return;
+      }
+      if (action === 'lunara_start') {
+        handleDeviceAction('triple_tap');
+        return;
+      }
+    }
+
+    function rememberTouchPoint(point) {
+      if (point) lastTouchPoint.copy(point);
+      const normal = lastTouchPoint.clone().sub(dome.position).normalize();
+      lastTouchQuaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
+      [touchSpot, progressRing, ...rippleRings, ...surfaceWaves].forEach(object => {
+        object.position.copy(lastTouchPoint).multiplyScalar(1.014);
+        object.quaternion.copy(lastTouchQuaternion);
+      });
+    }
+
+    function selectPadAction(action, event) {
+      const config = padActions[action];
+      if (!config) return;
+      selectedAction = action;
+      draggingAction = action;
+      padButtons.forEach(button => button.classList.toggle('selected', button.dataset.deviceAction === action));
+      playPhoneSignal(config.sound);
+      temporaryState(config.state, 9000);
+      startBaseWaves(config.color, 1200);
+      if (gestureDrop) {
+        gestureDrop.style.color = '#' + config.color.toString(16).padStart(6, '0');
+        gestureDrop.classList.add('show');
+        moveGestureDrop(event);
+      }
+    }
+
+    function clearPadAction(resetState = true) {
+      selectedAction = null;
+      draggingAction = null;
+      padButtons.forEach(button => button.classList.remove('selected'));
+      if (gestureDrop) gestureDrop.classList.remove('show');
+      if (resetState && currentState !== 'offline') setState('idle');
+    }
+
+    function moveGestureDrop(event) {
+      if (!gestureDrop || !event) return;
+      gestureDrop.style.left = event.clientX + 'px';
+      gestureDrop.style.top = event.clientY + 'px';
+    }
+
+    function runSelectedAction(point) {
+      const action = selectedAction || draggingAction;
+      const config = padActions[action];
+      if (!config) return false;
+      rememberTouchPoint(point || hoveredPoint || lastTouchPoint);
+      startTouchLight(config.color, action === 'help_request' || action === 'lunara_start' ? 3 : 2);
+      if (action === 'wants_to_talk') {
+        handleDeviceAction('single_tap');
+        clearPadAction(false);
+        return true;
+      }
+      config.send();
+      clearPadAction(false);
+      return true;
+    }
+
+    function resetTalkConfirmation() {
+      talkConfirmUntil = 0;
+      clearTimeout(talkConfirmTimer);
+      if (currentState === 'confirm_talk') setState('idle');
+    }
+
+    function getTalkRequestMode() {
+      return localStorage.getItem('vb-talk-request-mode') || 'instant';
+    }
+
+    function promptTalkConfirmation() {
+      talkConfirmUntil = performance.now() + 7000;
+      clearTimeout(talkConfirmTimer);
+      temporaryState('confirm_talk', 7000);
+      startTouchLight(colors.wants_to_talk, 2);
+      startBaseWaves(colors.wants_to_talk, 1300);
+      showFloatingCard('blue', 'Хотите<br/>поговорить?', currentTime(), 'Коснитесь ещё раз');
+      speakPhrase('Хотите поговорить? Коснитесь ещё раз!');
+      talkConfirmTimer = setTimeout(() => {
+        talkConfirmUntil = 0;
+        if (currentState === 'confirm_talk') setState('idle');
+      }, 7000);
+    }
+
+    function playSosHoldBeep(progress) {
+      try {
+        const ctx = ensureAudioContext();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.value = 430 + progress * 360;
+        gain.gain.setValueAtTime(0, ctx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.14 + progress * 0.34, ctx.currentTime + 0.018);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.09 + progress * 0.1);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12 + progress * 0.12);
+      } catch(e) {}
+    }
+
+    function startSosHoldFeedback() {
+      stopSosHoldFeedback();
+      sosHoldStartedAt = performance.now();
+      ringFlashUntil = Math.max(ringFlashUntil, sosHoldStartedAt + SOS_HOLD_MS + 400);
+      const tick = () => {
+        const progress = Math.max(0, Math.min(1, (performance.now() - sosHoldStartedAt) / SOS_HOLD_MS));
+        playSosHoldBeep(progress);
+        sosHoldFeedbackTimer = setTimeout(tick, 560 - progress * 360);
+      };
+      tick();
+    }
+
+    function stopSosHoldFeedback() {
+      clearTimeout(sosHoldFeedbackTimer);
+      sosHoldFeedbackTimer = null;
+      sosHoldStartedAt = 0;
+    }
+
+    function triggerSosNow() {
+      stopSosHoldFeedback();
+      playPhoneSignal('sos_long');
+      window.sendSOS?.();
+      setTimeout(() => {
+        speakPhrase('Сигнал SOS отправлен. Ожидайте помощи!');
+      }, 4100);
+    }
+
+    function sendBraceletSOS() {
+      braceletSosSent = true;
+      triggerSosNow();
+    }
+
+    function sendPadHoldSOS() {
+      padSosHoldSent = true;
+      triggerSosNow();
+    }
+
+    function intersectDomeFromClient(event) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(dome, false)[0];
+      return hit ? device.worldToLocal(hit.point.clone()) : null;
+    }
+
+    padButtons.forEach(button => {
+      button.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        if (button.dataset.deviceAction === 'help_request') {
+          padSosHoldSent = false;
+          clearTimeout(padSosHoldTimer);
+          selectPadAction('help_request', event);
+          startSosHoldFeedback();
+          padSosHoldTimer = setTimeout(() => {
+            if (!padSosHoldSent) sendPadHoldSOS();
+          }, SOS_HOLD_MS);
+          return;
+        }
+        selectPadAction(button.dataset.deviceAction, event);
+      });
+      button.addEventListener('pointerup', event => {
+        if (button.dataset.deviceAction !== 'help_request') return;
+        event.preventDefault();
+        clearTimeout(padSosHoldTimer);
+        stopSosHoldFeedback();
+        if (!padSosHoldSent) clearPadAction(true);
+      });
+      button.addEventListener('pointerleave', () => {
+        if (button.dataset.deviceAction !== 'help_request') return;
+        clearTimeout(padSosHoldTimer);
+        stopSosHoldFeedback();
+        if (!padSosHoldSent) clearPadAction(true);
+      });
+      button.addEventListener('click', event => {
+        event.preventDefault();
+        if (event.detail !== 0) return;
+        if (button.dataset.deviceAction === 'help_request') return;
+        selectPadAction(button.dataset.deviceAction, event);
+      });
+    });
+
+    if (braceletSos) {
+      braceletSos.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        braceletSosSent = false;
+        braceletShortTapArmed = true;
+        clearTimeout(braceletHoldTimer);
+        startSosHoldFeedback();
+        braceletHoldTimer = setTimeout(() => {
+          braceletShortTapArmed = false;
+          if (!braceletSosSent) sendBraceletSOS();
+        }, SOS_HOLD_MS);
+      });
+      braceletSos.addEventListener('pointerup', event => {
+        event.preventDefault();
+        clearTimeout(braceletHoldTimer);
+        stopSosHoldFeedback();
+        braceletShortTapArmed = false;
+      });
+      braceletSos.addEventListener('pointerleave', () => {
+        clearTimeout(braceletHoldTimer);
+        stopSosHoldFeedback();
+        braceletShortTapArmed = false;
+      });
+      braceletSos.addEventListener('click', event => event.preventDefault());
+    }
+
+    window.addEventListener('pointermove', event => {
+      if (!draggingAction) return;
+      moveGestureDrop(event);
+      const point = intersectDomeFromClient(event);
+      if (point) {
+        rememberTouchPoint(point);
+        hoverRing.visible = true;
+        hoverRing.position.copy(lastTouchPoint).multiplyScalar(1.012);
+        hoverRing.quaternion.copy(lastTouchQuaternion);
+        hoverRing.material.color.setHex(padActions[draggingAction].color);
+      }
+    });
+
+    window.addEventListener('pointerup', event => {
+      if (!draggingAction) return;
+      moveGestureDrop(event);
+      const point = intersectDomeFromClient(event);
+      if (point) {
+        if (draggingAction === 'help_request') {
+          rememberTouchPoint(point);
+          startTouchLight(colors.help_request, 3);
+          draggingAction = null;
+          if (gestureDrop) gestureDrop.classList.remove('show');
+          return;
+        }
+        runSelectedAction(point);
+      } else {
+        draggingAction = null;
+        if (gestureDrop) gestureDrop.classList.remove('show');
+      }
+    });
+
+    function pointerDown(event) {
+      autoRotateDevice = false;
+      const button = intersectPhysicalButton(event);
+      if (button) {
+        event.preventDefault();
+        activePhysicalButton = button;
+        physicalButtonHoldSent = false;
+        const action = button.userData.deviceAction;
+        setPhysicalButtonScale(button, 1.07);
+        startBaseWaves(button.userData.color, 1200);
+        temporaryState(padActions[action]?.state || 'idle', action === 'help_request' ? 9000 : 1800);
+        if (action === 'help_request') {
+          clearTimeout(physicalButtonHoldTimer);
+          startSosHoldFeedback();
+          physicalButtonHoldTimer = setTimeout(() => {
+            physicalButtonHoldSent = true;
+            triggerSosNow();
+            setPhysicalButtonScale(button, 1);
+            activePhysicalButton = null;
+          }, SOS_HOLD_MS);
+        }
+        return;
+      }
+      updateHover(event);
+      if (!hoveredPoint) return;
+      rememberTouchPoint(hoveredPoint);
+      if (selectedAction) {
+        startTouchLight(padActions[selectedAction].color, selectedAction === 'wants_to_talk' ? 2 : 3);
+        if (selectedAction === 'help_request') {
+          holdActive = true;
+          holdTriggered = false;
+          holdStart = performance.now();
+          handleDeviceAction('long_touch_start', { silent: true, sos: true });
+          clearTimeout(holdTimer);
+          holdTimer = setTimeout(() => {
+            if (!holdActive || holdTriggered) return;
+            holdTriggered = true;
+            handleDeviceAction('long_touch_10s');
+            clearPadAction(false);
+          }, SOS_HOLD_MS);
+        }
+        return;
+      }
+      holdActive = true;
+      holdTriggered = false;
+      holdStart = performance.now();
+      handleDeviceAction('long_touch_start', { silent: true, sos: true });
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => {
+        if (!holdActive || holdTriggered) return;
+        holdTriggered = true;
+        handleDeviceAction('long_touch_10s');
+      }, SOS_HOLD_MS);
+    }
+
+    function pointerUp(event) {
+      const button = activePhysicalButton;
+      if (button) {
+        event.preventDefault();
+        clearTimeout(physicalButtonHoldTimer);
+        stopSosHoldFeedback();
+        setPhysicalButtonScale(button, 1);
+        activePhysicalButton = null;
+        if (!physicalButtonHoldSent) runPhysicalButton(button.userData.deviceAction);
+        physicalButtonHoldSent = false;
+        return;
+      }
+      updateHover(event);
+      if (selectedAction) {
+        if (selectedAction === 'help_request') {
+          const wasHold = holdActive;
+          holdActive = false;
+          clearTimeout(holdTimer);
+          stopSosHoldFeedback();
+          if (wasHold && !holdTriggered) handleDeviceAction('long_touch_cancel', { silent: true });
+          return;
+        }
+        runSelectedAction(hoveredPoint || lastTouchPoint);
+        return;
+      }
+      const wasHold = holdActive;
+      holdActive = false;
+      clearTimeout(holdTimer);
+      stopSosHoldFeedback();
+      if (wasHold && !holdTriggered) handleDeviceAction('long_touch_cancel', { silent: true });
+      if (directLineWaiting && acceptDirectLine()) return;
+      tapCount += 1;
+      clearTimeout(tapTimer);
+      tapTimer = setTimeout(() => {
+        if (tapCount === 1) {
+          handleDeviceAction('single_tap');
+        } else if (tapCount >= 3 && tapCount <= 5) {
+          handleDeviceAction('triple_tap');
+        } else if (tapCount > 5) {
+          setState('idle');
+        }
+        tapCount = 0;
+      }, 650);
+    }
+
+    renderer.domElement.addEventListener('pointermove', updateHover);
+    renderer.domElement.addEventListener('pointerdown', pointerDown);
+    renderer.domElement.addEventListener('pointerup', pointerUp);
+    renderer.domElement.addEventListener('pointercancel', () => {
+      holdActive = false;
+      activePhysicalButton = null;
+      clearTimeout(holdTimer);
+      clearTimeout(physicalButtonHoldTimer);
+      stopSosHoldFeedback();
+      physicalButtons.forEach(button => setPhysicalButtonScale(button, 1));
+      handleDeviceAction('long_touch_cancel', { silent: true });
+    });
+    renderer.domElement.addEventListener('pointerleave', () => { hoveredPoint = null; hoverRing.visible = false; physicalButtons.forEach(button => setPhysicalButtonScale(button, 1)); });
+
+    function setState(state) {
+      currentState = state;
+      const color = colors[state] || colors.idle;
+      ringMaterial.color.setHex(color);
+      glowMaterial.color.setHex(color);
+      targetDomeColor.setHex(domeColors[state] || domeColors.idle);
+    }
+
+    function temporaryState(state, duration = 2600) {
+      setState(state);
+      window.clearTimeout(temporaryState.timer);
+      if (state !== 'offline' && state !== 'idle' && state !== 'listening' && state !== 'help_request') {
+        temporaryState.timer = window.setTimeout(() => {
+          if (!sosLatched) setState('idle');
+        }, duration);
+      }
+    }
+
+    function scheduleIdleReturn(duration = 5200) {
+      window.clearTimeout(scheduleIdleReturn.timer);
+      scheduleIdleReturn.timer = window.setTimeout(() => {
+        if (sosLatched && currentState === 'help_request') return;
+        if (currentState !== 'offline') setState('idle');
+        ringFlashUntil = 0;
+        waveUntil = 0;
+      }, duration);
+    }
+
+    function setSosLatched(active) {
+      sosLatched = active;
+      if (active) {
+        window.clearTimeout(scheduleIdleReturn.timer);
+        window.clearTimeout(temporaryState.timer);
+      }
+    }
+
+    function startTouchLight(colorHex, waves = 2) {
+      touchSpot.visible = true;
+      touchSpot.material.color.setHex(colorHex);
+      touchSpot.material.opacity = 0.72;
+      clickPulse = 1;
+      rippleRings.forEach((ring, i) => {
+        ring.visible = i < waves;
+        ring.material.color.setHex(colorHex);
+        ring.material.opacity = 0.75 - i * 0.16;
+        ring.scale.setScalar(0.52 + i * 0.22);
+        ring.userData.birth = performance.now() + i * 120;
+      });
+    }
+
+    function startSurfaceWaves(colorHex) {
+      surfaceWaves.forEach((ring, i) => {
+        ring.visible = true;
+        ring.material.color.setHex(colorHex);
+        ring.material.opacity = 0.55 - i * 0.1;
+        ring.scale.setScalar(0.45 + i * 0.22);
+        ring.userData.birth = performance.now() + i * 160;
+      });
+    }
+
+    function startBaseWaves(colorHex, duration = 1900, ringDuration = 5200) {
+      const now = performance.now();
+      waveUntil = now + duration;
+      ringFlashUntil = Math.max(ringFlashUntil, now + ringDuration);
+      baseWaves.forEach((wave, i) => {
+        wave.visible = true;
+        wave.material.color.setHex(colorHex);
+        wave.userData.birth = now + i * 220;
+      });
+    }
+
+    function startDomeColorPulse(state, duration = 3600) {
+      colorPulseUntil = performance.now() + duration;
+      colorPulseColor.setHex(domeColors[state] || domeColors.idle);
+      targetDomeColor.setHex(domeColors[state] || domeColors.idle);
+      pulseUntil = Math.max(pulseUntil, performance.now() + Math.min(duration, 2400));
+    }
+
+    function clearDirectLineTimers() {
+      directLineTimers.forEach(timer => clearTimeout(timer));
+      directLineTimers = [];
+    }
+
+    function finishDirectLineWaiting(sendTimeout = false) {
+      if (!directLineWaiting) return;
+      directLineWaiting = false;
+      clearDirectLineTimers();
+      playDirectLineTone('end');
+      setState('idle');
+      ringFlashUntil = 0;
+      waveUntil = 0;
+      if (sendTimeout && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'direct_line_timeout' }));
+      }
+    }
+
+    function startDirectLineRequest() {
+      finishDirectLineWaiting(false);
+      directLineWaiting = true;
+      setState('direct_line_request');
+      startDomeColorPulse('direct_line_request', 4800);
+      playDirectLineTone('start');
+      for (let i = 0; i < 5; i += 1) {
+        directLineTimers.push(setTimeout(() => {
+          if (!directLineWaiting) return;
+          startBaseWaves(colors.direct_line_request, 850, 1200);
+          pulseUntil = performance.now() + 700;
+        }, i * 520));
+      }
+      directLineTimers.push(setTimeout(() => {
+        if (!directLineWaiting) return;
+        speakText('С вами хотят поговорить. Коснитесь устройства, чтобы ответить.');
+        setState('direct_line_waiting');
+        ringFlashUntil = performance.now() + 30000;
+      }, 3600));
+      directLineTimers.push(setTimeout(() => {
+        finishDirectLineWaiting(true);
+      }, 33600));
+    }
+
+    function acceptDirectLine() {
+      if (!directLineWaiting) return false;
+      directLineWaiting = false;
+      clearDirectLineTimers();
+      setState('direct_line_active');
+      startDomeColorPulse('direct_line_active', 2400);
+      showFloatingCard('green', 'Прямая<br/>связь', currentTime(), 'Папа подключился');
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'direct_line_accept' }));
+      }
+      return true;
+    }
+
+    function handleDeviceAction(action, options = {}) {
+      const now = performance.now();
+      if (['idle', 'offline', 'voice_message', 'phrase_message', 'message_delivered', 'wants_to_talk', 'lunara_start', 'lunara_speaking', 'listening', 'sos_acknowledged', 'help_request'].includes(action)) {
+        stopSosHoldFeedback();
+        setSosLatched(false);
+        if (action !== 'idle' && action !== 'offline') finishDirectLineWaiting(false);
+      }
+      if (action === 'direct_line_request') {
+        startDirectLineRequest();
+        return;
+      }
+      if (action === 'direct_line_cancel') {
+        finishDirectLineWaiting(false);
+        setState('idle');
+        return;
+      }
+      if (action === 'direct_line_accept') {
+        acceptDirectLine();
+        return;
+      }
+      if (action === 'sos_acknowledged') {
+        setState('idle');
+        ringFlashUntil = 0;
+        waveUntil = 0;
+        showFloatingCard('delivered', 'SOS<br/>услышан', currentTime());
+        return;
+      }
+      if (action === 'idle') {
+        setState('idle');
+        ringFlashUntil = 0;
+        waveUntil = 0;
+        return;
+      }
+      if (action === 'offline') {
+        setState('offline');
+        ringFlashUntil = 0;
+        waveUntil = 0;
+        showFloatingCard('gray', 'Нет<br/>связи', currentTime());
+        return;
+      }
+      if (action === 'long_touch_start') {
+        progressRing.visible = true;
+        progressRing.material.color.setHex(colors.help_request);
+        progressRing.material.opacity = 0.72;
+        setState(options.sos ? 'help_request' : 'listening');
+        if (options.sos) startSosHoldFeedback();
+        return;
+      }
+      if (action === 'long_touch_cancel') {
+        progressRing.visible = false;
+        stopSosHoldFeedback();
+        if (currentState === 'listening' || currentState === 'help_request') setState(selectedAction ? padActions[selectedAction].state : 'idle');
+        return;
+      }
+      if (action === 'single_tap') {
+        if (getTalkRequestMode() === 'instant') {
+          resetTalkConfirmation();
+          handleDeviceAction('wants_to_talk');
+          if (!options.silent && typeof window.sendWantsToTalk === 'function') window.sendWantsToTalk();
+          return;
+        }
+        if (talkConfirmUntil && performance.now() <= talkConfirmUntil) {
+          resetTalkConfirmation();
+          handleDeviceAction('wants_to_talk');
+          if (!options.silent && typeof window.sendWantsToTalk === 'function') window.sendWantsToTalk();
+        } else {
+          promptTalkConfirmation();
+        }
+        return;
+      }
+      if (action === 'triple_tap') {
+        resetTalkConfirmation();
+        playPhoneSignal('lunara');
+        handleDeviceAction('lunara_start');
+        if (!options.silent && typeof window.sendLunara === 'function') window.sendLunara();
+        return;
+      }
+      if (action === 'long_touch_10s') {
+        resetTalkConfirmation();
+        progressRing.visible = false;
+        triggerSosNow();
+        return;
+      }
+      if (action === 'wants_to_talk') {
+        temporaryState('wants_to_talk', 5200);
+        startTouchLight(colors.wants_to_talk, 2);
+        startBaseWaves(colors.wants_to_talk, 1800);
+        pulseUntil = now + 1500;
+        scheduleIdleReturn();
+        return;
+      }
+      if (action === 'voice_message') {
+        temporaryState('voice_message', 5200);
+        startBaseWaves(colors.voice_message, 2400);
+        startDomeColorPulse('voice_message', 3900);
+        pulseUntil = now + 1900;
+        scheduleIdleReturn();
+        return;
+      }
+      if (action === 'phrase_message') {
+        temporaryState('phrase_message', 5200);
+        startBaseWaves(colors.phrase_message, 2400);
+        startDomeColorPulse('phrase_message', 4200);
+        pulseUntil = now + 2100;
+        scheduleIdleReturn();
+        return;
+      }
+      if (action === 'message_delivered') {
+        temporaryState('message_delivered', 5200);
+        startBaseWaves(colors.message_delivered, 1700);
+        startDomeColorPulse('message_delivered', 3200);
+        showFloatingCard('delivered', 'Сообщение<br/>доставлено', currentTime());
+        pulseUntil = now + 1300;
+        if (!options.silent && typeof window.sendEvent === 'function') window.sendEvent('message_delivered');
+        scheduleIdleReturn();
+        return;
+      }
+      if (action === 'help_request') {
+        stopSosHoldFeedback();
+        setSosLatched(true);
+        setState('help_request');
+        startTouchLight(colors.help_request, 3);
+        startBaseWaves(colors.help_request, 3000);
+        pulseUntil = now + 3200;
+        return;
+      }
+      if (action === 'lunara_start' || action === 'lunara_speaking') {
+        setState('lunara_speaking');
+        startTouchLight(colors.lunara_start, 3);
+        startSurfaceWaves(colors.lunara_start);
+        startBaseWaves(colors.lunara_start, 2200);
+        pulseUntil = now + 1900;
+        scheduleIdleReturn();
+        return;
+      }
+      if (action === 'listening') {
+        setState('listening');
+        startTouchLight(colors.listening, 3);
+        startSurfaceWaves(colors.listening);
+      }
+    }
+
+    function trigger(eventName) {
+      handleDeviceAction(eventName === 'voice' ? 'voice_message' : eventName, { silent: true });
+    }
+
+    // Функции для live_line — используют module-scope переменные напрямую
+    function setLiveLineActive() {
+      setState('direct_line_active');
+      // Принудительно и мгновенно ставим цвет — без ожидания lerp
+      const greenColor = new THREE.Color(0x86efac);
+      targetDomeColor.copy(greenColor);
+      plastic.color.copy(greenColor);
+      colorPulseColor.copy(greenColor);
+      colorPulseUntil = performance.now() + 60000; // 60 сек — всё время сессии
+    }
+    function setLiveLineIdle() {
+      const idleHex = domeColors['idle'] || 0xfff3cc;
+      setState('idle');
+      const idleColor = new THREE.Color(idleHex);
+      targetDomeColor.copy(idleColor);
+      plastic.color.copy(idleColor);
+      colorPulseUntil = 0; // сбросить pulse
+    }
+    window.voiceBridge3D = { setState, trigger, handleDeviceAction, startDomeColorPulse, setLiveLineActive, setLiveLineIdle };
+    window.handleDeviceAction = handleDeviceAction;
+
+    function animate(now) {
+      const time = now * 0.001;
+      const holdProgress = sosHoldStartedAt ? Math.max(0, Math.min(1, (now - sosHoldStartedAt) / SOS_HOLD_MS)) : 0;
+      const holdDanger = holdProgress >= 0.4 ? (holdProgress - 0.4) / 0.6 : 0;
+      const holdPulse = sosHoldStartedAt
+        ? 0.025 + Math.max(0, Math.sin(time * (4.8 + holdDanger * 8.5))) * (0.08 + holdDanger * 0.38)
+        : 0;
+      const breath = (currentState === 'help_request' || sosHoldStartedAt)
+        ? 1
+        : 1 + Math.sin(time * 1.1) * (currentState === 'offline' ? 0.006 : 0.014);
+      const pulseActive = Math.max(0, pulseUntil - now);
+      const sosBoost = currentState === 'help_request' ? 0.07 : 0.032;
+      const pulse = pulseActive ? Math.sin((1 - pulseActive / 3200) * Math.PI * 6) * sosBoost * (pulseActive / 3200) : 0;
+      const latchedSosPulse = sosLatched && currentState === 'help_request'
+        ? 0.018 + Math.max(0, Math.sin(time * 5.4)) * 0.052
+        : 0;
+      const directLinePulse = (currentState === 'direct_line_request' || currentState === 'direct_line_waiting' || currentState === 'direct_line_active')
+        ? 0.012 + Math.max(0, Math.sin(time * 2.7)) * 0.026
+        : 0;
+      const bodyPulse = currentState === 'help_request' ? 0 : Math.max(0, pulse);
+      device.scale.setScalar(DEVICE_BASE_SCALE * (breath + bodyPulse + clickPulse * 0.07));
+      clickPulse *= 0.85;
+
+      const color = colors[currentState] || colors.idle;
+      ringMaterial.color.setHex(color);
+      glowMaterial.color.setHex(color);
+      if (sosHoldStartedAt) {
+        const holdColor = new THREE.Color(colors.sos_pending).lerp(new THREE.Color(colors.help_request), holdDanger);
+        ringMaterial.color.copy(holdColor);
+        glowMaterial.color.copy(holdColor);
+      }
+      const activeColorPulse = Math.max(0, colorPulseUntil - now);
+      const domePulseMix = activeColorPulse ? (0.25 + Math.max(0, Math.sin(time * 8.5)) * 0.28) * Math.min(1, activeColorPulse / 900) : 0;
+      const domeTarget = targetDomeColor.clone();
+      if (domePulseMix) domeTarget.lerp(colorPulseColor, domePulseMix);
+      plastic.color.lerp(domeTarget, domePulseMix ? 0.16 : 0.08);
+      const idleGlow = currentState === 'idle' ? 0.11 + Math.sin(time * 1.1) * 0.025 : 0.17;
+      glowMaterial.opacity = (currentState === 'offline' ? 0.045 : idleGlow) + Math.max(0, pulse) * 2.2 + latchedSosPulse * 3.2 + holdPulse * 2.4 + domePulseMix * 0.42 + directLinePulse * 2.1;
+      const ringFlash = Math.max(0, ringFlashUntil - now);
+      const ringFlashMix = ringFlash ? Math.min(1, ringFlash / 900) : 0;
+      ringMaterial.opacity = currentState === 'offline'
+        ? 0
+        : ringFlash
+          ? 0.045 + ringFlashMix * 0.18 + Math.max(0, pulse) * 0.65 + latchedSosPulse * 0.45 + holdPulse * 0.9 + directLinePulse * 1.25
+          : sosLatched && currentState === 'help_request'
+            ? 0.05 + latchedSosPulse * 0.5
+            : currentState === 'direct_line_waiting' || currentState === 'direct_line_active'
+              ? 0.028 + directLinePulse * 0.75
+              : 0.006;
+
+      if (waveUntil > now) {
+        const progress = Math.max(0, Math.min(1, 1 - ((waveUntil - now) / 2400)));
+        baseRing.scale.setScalar(1 + progress * 0.10);
+        ringMaterial.opacity = Math.max(ringMaterial.opacity, 0.20 * (1 - progress) + 0.035);
+        baseWaves.forEach((wave, i) => {
+          const p = Math.max(0, Math.min(1, (now - wave.userData.birth) / 1400));
+          wave.visible = p < 1;
+          wave.scale.setScalar(1 + p * 0.34);
+          wave.material.opacity = Math.max(0, (1 - p) * (0.12 - i * 0.025));
+        });
+      } else {
+        baseRing.scale.setScalar(1);
+        baseWaves.forEach(wave => { wave.visible = false; });
+      }
+
+      if (holdActive && !holdTriggered) {
+        const progress = Math.max(0.03, Math.min(1, (now - holdStart) / SOS_HOLD_MS));
+        progressRing.visible = true;
+        progressRing.geometry.dispose();
+        progressRing.geometry = new THREE.TorusGeometry(0.42, 0.018, 12, 96, Math.PI * 2 * progress);
+        progressRing.material.opacity = 0.38 + progress * 0.52;
+        ringMaterial.color.lerp(new THREE.Color(colors.help_request), progress * 0.035);
+        glowMaterial.color.lerp(new THREE.Color(colors.help_request), progress * 0.035);
+      }
+
+      rippleRings.forEach((ring, i) => {
+        if (!ring.visible) return;
+        const p = Math.max(0, Math.min(1, (now - ring.userData.birth) / 980));
+        ring.scale.setScalar(0.45 + p * (1.55 + i * 0.18));
+        ring.material.opacity = Math.max(0, (1 - p) * (0.42 - i * 0.08));
+        if (p >= 1) ring.visible = false;
+      });
+
+      surfaceWaves.forEach((ring, i) => {
+        if (!ring.visible) return;
+        const p = Math.max(0, Math.min(1, (now - ring.userData.birth) / 1800));
+        ring.scale.setScalar(0.52 + p * (1.4 + i * 0.2));
+        ring.material.opacity = Math.max(0, (1 - p) * (0.24 - i * 0.04));
+        if (p >= 1 && currentState !== 'lunara_speaking' && currentState !== 'listening') ring.visible = false;
+        if (p >= 1 && (currentState === 'lunara_speaking' || currentState === 'listening')) ring.userData.birth = now + i * 240;
+      });
+
+      if (touchSpot.visible) {
+        touchSpot.material.opacity *= 0.94;
+        touchSpot.scale.setScalar(1 + Math.sin(time * 8) * 0.06);
+        if (touchSpot.material.opacity < 0.03) touchSpot.visible = false;
+      }
+
+      if (hoverRing.visible) {
+        hoverRing.material.opacity = 0.58 + Math.sin(time * 7) * 0.16;
+        hoverRing.scale.setScalar(1 + Math.sin(time * 6) * 0.05 + clickPulse * 0.5);
+      }
+
+      if (autoRotateDevice) device.rotation.y += 0.0009;
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    resize();
+    setState(window.voiceBridgeConnected ? 'idle' : 'offline');
+    window.addEventListener('resize', resize);
+    requestAnimationFrame(animate);
+
+</script>
+<script>
+/* VoiceBridge Live Line — global scope — v1780080902 */
+let dlActive=false,dlStream=null,dlProc=null,dlCtx=null,dlInCtx=null;
+
+function _deviceWarningBeep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [0,0.35,0.7].forEach(t=>{
+      const o=ctx.createOscillator(),g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.type='sine';o.frequency.value=880;
+      g.gain.setValueAtTime(0,ctx.currentTime+t);
+      g.gain.linearRampToValueAtTime(0.15,ctx.currentTime+t+0.04);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.25);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.28);
+    });
+    const o2=ctx.createOscillator(),g2=ctx.createGain();
+    o2.connect(g2);g2.connect(ctx.destination);
+    o2.frequency.value=660;
+    g2.gain.setValueAtTime(0,ctx.currentTime+1.1);
+    g2.gain.linearRampToValueAtTime(0.18,ctx.currentTime+1.15);
+    g2.gain.setValueAtTime(0.18,ctx.currentTime+1.9);
+    g2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+2.0);
+    o2.start(ctx.currentTime+1.1);o2.stop(ctx.currentTime+2.05);
+  }catch(e){}
+}
+function _playLiveLineAlert(){
+  // Три мягких нарастающих тона — «сигнал соединения»
+  try{
+    const ctx = new(window.AudioContext||window.webkitAudioContext)();
+    const freqs = [523, 659, 784]; // C5 E5 G5 — мажорный аккорд нарастанием
+    freqs.forEach((freq, i) => {
+      const t = ctx.currentTime + i * 0.55;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(0.22, t + 0.08);
+      gain.gain.setValueAtTime(0.22, t + 0.35);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+      osc.start(t); osc.stop(t + 0.55);
+    });
+    // Финальный длинный тон — «канал открыт»
+    const t2 = ctx.currentTime + 1.8;
+    const osc2 = ctx.createOscillator();
+    const g2 = ctx.createGain();
+    osc2.connect(g2); g2.connect(ctx.destination);
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(880, t2);
+    g2.gain.setValueAtTime(0, t2);
+    g2.gain.linearRampToValueAtTime(0.18, t2 + 0.1);
+    g2.gain.setValueAtTime(0.18, t2 + 0.8);
+    g2.gain.exponentialRampToValueAtTime(0.001, t2 + 1.0);
+    osc2.start(t2); osc2.stop(t2 + 1.05);
+  } catch(e) {}
+}
+
+async function startDeviceLlAudio(){
+  dlActive=true;
+  // Аудио-уведомление для папы
+  _playLiveLineAlert();
+  // Через 3 сек — открываем микрофон
+  await new Promise(r => setTimeout(r, 3000));
+  if(!dlActive) return;
+  try{speakText('Говорите.');}catch{}
+  try{
+    dlStream=await navigator.mediaDevices.getUserMedia({audio:true});
+    dlCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+    const src=dlCtx.createMediaStreamSource(dlStream);
+    dlProc=dlCtx.createScriptProcessor(2048,1,1);
+    dlProc.onaudioprocess=e=>{
+      if(!dlActive||!ws||ws.readyState!==1)return;
+      const f32=e.inputBuffer.getChannelData(0),i16=new Int16Array(f32.length);
+      for(let i=0;i<f32.length;i++)i16[i]=Math.max(-32768,Math.min(32767,f32[i]*32768));
+      ws.send(JSON.stringify({type:'live_audio_chunk',audio:btoa(String.fromCharCode(...new Uint8Array(i16.buffer)))}));
+    };
+    src.connect(dlProc);dlProc.connect(dlCtx.destination);
+  }catch(e){console.warn('dl mic',e);}
+}
+function stopDeviceLlAudio(){
+  dlActive=false;
+  if(dlProc){try{dlProc.disconnect();}catch{}dlProc=null;}
+  if(dlStream){dlStream.getTracks().forEach(t=>t.stop());dlStream=null;}
+  if(dlCtx){try{dlCtx.close();}catch{}dlCtx=null;}
+  try{speakText('Связь завершена.');}catch{}
+}
+async function playDeviceLlChunk(b64){
+  if(!dlActive)return;
+  try{
+    if(!dlInCtx) dlInCtx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+    if(dlInCtx.state==='suspended')await dlInCtx.resume();
+    const raw=atob(b64),i16=new Int16Array(raw.length/2);
+    for(let i=0;i<i16.length;i++)i16[i]=raw.charCodeAt(i*2)|(raw.charCodeAt(i*2+1)<<8);
+    const f32=new Float32Array(i16.length);
+    for(let i=0;i<i16.length;i++)f32[i]=i16[i]/32768;
+    const buf=dlInCtx.createBuffer(1,f32.length,16000);
+    buf.copyToChannel(f32,0);
+    const s=dlInCtx.createBufferSource();s.buffer=buf;s.connect(dlInCtx.destination);s.start();
+  }catch(e){}
+}
+
+// Запись голосового от папы — вызывать на нажатие физической кнопки
+let dvRec=false,dvMR=null,dvChunks=[],dvTimer=null,dvStart=0;
+async function recordDadVoice(){
+  if(dvRec)return;dvRec=true;dvStart=Date.now();dvChunks=[];
+  setState('direct_line_active');
+  startDomeColorPulse('direct_line_active',800);
+  try{speakText('Запись.');}catch{}
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  dvMR=new MediaRecorder(stream,{mimeType:'audio/webm'});
+  dvMR.ondataavailable=e=>{if(e.data.size>0)dvChunks.push(e.data);};
+  dvMR.onstop=async()=>{
+    stream.getTracks().forEach(t=>t.stop());
+    const blob=new Blob(dvChunks,{type:'audio/webm'});
+    const r=new FileReader();
+    r.onload=()=>{
+      ws.send(JSON.stringify({
+        type:'dad_voice_message',
+        audio:r.result.split(',')[1],
+        mimeType:'audio/webm',
+        duration:Math.round((Date.now()-dvStart)/1000),
+        displayName:localStorage.getItem('vb-device-name')||'Папа',
+      }));
+    };
+    r.readAsDataURL(blob);
+    dvRec=false;setState('idle');
+    try{speakText('Отправлено.');}catch{}
+  };
+  dvMR.start();
+  dvTimer=setTimeout(()=>{if(dvMR&&dvMR.state==='recording')dvMR.stop();},60000);
+}
+function stopDadVoice(){
+  if(dvTimer){clearTimeout(dvTimer);dvTimer=null;}
+  if(dvMR&&dvMR.state==='recording')dvMR.stop();
+}
+</script>
+</body>
+</html>
+

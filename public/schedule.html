@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>VoiceBridge — Расписание</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial; background: #f8f7ff; min-height: 100vh; padding: 20px; }
+    h1 { color: #7c5cbf; margin-bottom: 6px; font-size: 22px; }
+    .sub { color: #6b7280; font-size: 13px; margin-bottom: 24px; }
+    .card { background: white; border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+    .card-title { font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 14px; text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-row { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 10px; }
+    label { font-size: 12px; color: #6b7280; font-weight: 600; display: block; margin-bottom: 4px; }
+    select, input[type="time"], input[type="text"] {
+      padding: 10px 12px; border: 1.5px solid #e5e7eb; border-radius: 10px;
+      font-size: 14px; background: #f9fafb; outline: none; width: 100%;
+    }
+    select:focus, input:focus { border-color: #7c5cbf; }
+    .days { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+    .day-btn {
+      width: 38px; height: 38px; border-radius: 50%; border: 1.5px solid #e5e7eb;
+      background: white; cursor: pointer; font-size: 12px; font-weight: 700; color: #6b7280;
+      transition: all 0.15s;
+    }
+    .day-btn.active { background: #7c5cbf; border-color: #7c5cbf; color: white; }
+    .btn-add {
+      background: #7c5cbf; color: white; border: none; border-radius: 10px;
+      padding: 11px 20px; font-size: 14px; font-weight: 600; cursor: pointer; width: 100%;
+      margin-top: 4px;
+    }
+    .btn-add:active { background: #6d4eb0; }
+
+    /* Schedule list */
+    .schedule-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 0; border-bottom: 1px solid #f3f4f6;
+    }
+    .schedule-item:last-child { border-bottom: none; }
+    .item-time { font-size: 22px; font-weight: 700; color: #1a1a2e; min-width: 60px; }
+    .item-info { flex: 1; }
+    .item-phrase { font-size: 14px; font-weight: 600; color: #374151; }
+    .item-days { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .item-toggle { position: relative; width: 44px; height: 24px; flex-shrink: 0; }
+    .item-toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; inset: 0; background: #e5e7eb; border-radius: 24px; cursor: pointer; transition: 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute; width: 18px; height: 18px; left: 3px; top: 3px;
+      background: white; border-radius: 50%; transition: 0.2s;
+    }
+    input:checked + .toggle-slider { background: #7c5cbf; }
+    input:checked + .toggle-slider::before { transform: translateX(20px); }
+    .btn-delete { background: none; border: none; cursor: pointer; color: #ef4444; font-size: 18px; padding: 4px; }
+
+    .status-bar { background: white; border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; animation: pulse 2s infinite; flex-shrink: 0; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+    .status-text { font-size: 13px; color: #374151; }
+    .next-msg { font-size: 12px; color: #7c5cbf; font-weight: 600; }
+    .empty { text-align: center; color: #9ca3af; font-size: 13px; padding: 20px 0; }
+  </style>
+</head>
+<body>
+
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+  <button onclick="window.location.href='/'" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px">←</button>
+  <h1>💜 Расписание</h1>
+</div>
+<p class="sub">Фразы отправляются автоматически в заданное время</p>
+
+<div class="status-bar">
+  <div class="status-dot"></div>
+  <div>
+    <div class="status-text" id="status-text">Подключение к серверу...</div>
+    <div class="next-msg" id="next-msg"></div>
+  </div>
+</div>
+
+<!-- Add new -->
+<div class="card">
+  <div class="card-title">➕ Новое напоминание</div>
+
+  <div class="form-row">
+    <div style="flex:1;min-width:120px">
+      <label>Время</label>
+      <input type="time" id="inp-time" value="09:00"/>
+    </div>
+    <div style="flex:2;min-width:180px">
+      <label>Фраза</label>
+      <select id="inp-phrase">
+        <option>Доброе утро! ☀️</option>
+        <option>Прими таблетки! 💊</option>
+        <option>Обедать пора! 🍽️</option>
+        <option>Как ты себя чувствуешь? 😊</option>
+        <option>Спокойной ночи! 🌙</option>
+        <option>Думаю о тебе ❤️</option>
+        <option>Скоро буду дома! 🏡</option>
+        <option>Не забудь поесть! 🥗</option>
+        <option>Люблю тебя! 💕</option>
+        <option value="custom">Своя фраза...</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="custom-row" style="display:none; margin-bottom:10px">
+    <label>Введи свою фразу</label>
+    <input type="text" id="inp-custom" placeholder="Например: Пора на прогулку!"/>
+  </div>
+
+  <label style="margin-bottom:8px;display:block">Дни недели</label>
+  <div class="days">
+    <button class="day-btn active" data-day="1">Пн</button>
+    <button class="day-btn active" data-day="2">Вт</button>
+    <button class="day-btn active" data-day="3">Ср</button>
+    <button class="day-btn active" data-day="4">Чт</button>
+    <button class="day-btn active" data-day="5">Пт</button>
+    <button class="day-btn" data-day="6">Сб</button>
+    <button class="day-btn" data-day="0">Вс</button>
+  </div>
+
+  <button class="btn-add" onclick="addSchedule()">Добавить напоминание</button>
+</div>
+
+<!-- List -->
+<div class="card">
+  <div class="card-title">📋 Активные напоминания</div>
+  <div id="schedule-list"><div class="empty">Нет напоминаний. Добавь первое!</div></div>
+</div>
+
+<script>
+  const DAY_NAMES = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+  let schedules = JSON.parse(localStorage.getItem('vb-schedules') || '[]');
+  let checkInterval = null;
+
+  // WebSocket
+  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const ws = new WebSocket(protocol + '//' + location.host);
+  let connected = false;
+
+  ws.onopen = () => {
+    ws.send(JSON.stringify({ type: 'register', role: 'scheduler' }));
+    connected = true;
+    document.getElementById('status-text').textContent = 'Подключено ✅ — отправка активна';
+    startChecker();
+  };
+  ws.onclose = () => {
+    connected = false;
+    document.getElementById('status-text').textContent = 'Нет соединения ❌';
+  };
+
+  // Custom phrase toggle
+  document.getElementById('inp-phrase').addEventListener('change', function() {
+    document.getElementById('custom-row').style.display = this.value === 'custom' ? 'block' : 'none';
+  });
+
+  // Day buttons
+  document.querySelectorAll('.day-btn').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+  });
+
+  function getActiveDays() {
+    return [...document.querySelectorAll('.day-btn.active')].map(b => parseInt(b.dataset.day));
+  }
+
+  function addSchedule() {
+    const time = document.getElementById('inp-time').value;
+    const phraseEl = document.getElementById('inp-phrase');
+    const phrase = phraseEl.value === 'custom'
+      ? document.getElementById('inp-custom').value.trim()
+      : phraseEl.value;
+    const days = getActiveDays();
+
+    if (!time) { alert('Укажи время!'); return; }
+    if (!phrase) { alert('Введи фразу!'); return; }
+    if (!days.length) { alert('Выбери хотя бы один день!'); return; }
+
+    schedules.push({ id: Date.now(), time, phrase, days, active: true });
+    save();
+    render();
+  }
+
+  function deleteSchedule(id) {
+    schedules = schedules.filter(s => s.id !== id);
+    save();
+    render();
+  }
+
+  function toggleSchedule(id) {
+    const s = schedules.find(s => s.id === id);
+    if (s) { s.active = !s.active; save(); render(); }
+  }
+
+  function save() {
+    localStorage.setItem('vb-schedules', JSON.stringify(schedules));
+  }
+
+  function render() {
+    const list = document.getElementById('schedule-list');
+    if (!schedules.length) {
+      list.innerHTML = '<div class="empty">Нет напоминаний. Добавь первое!</div>';
+      return;
+    }
+    const sorted = [...schedules].sort((a,b) => a.time.localeCompare(b.time));
+    list.innerHTML = sorted.map(s => `
+      <div class="schedule-item">
+        <div class="item-time">${s.time}</div>
+        <div class="item-info">
+          <div class="item-phrase">${s.phrase}</div>
+          <div class="item-days">${s.days.map(d => DAY_NAMES[d]).join(', ')}</div>
+        </div>
+        <label class="item-toggle">
+          <input type="checkbox" ${s.active ? 'checked' : ''} onchange="toggleSchedule(${s.id})"/>
+          <span class="toggle-slider"></span>
+        </label>
+        <button class="btn-delete" onclick="deleteSchedule(${s.id})">🗑</button>
+      </div>
+    `).join('');
+    updateNextMsg();
+  }
+
+  function updateNextMsg() {
+    const now = new Date();
+    const nowMins = now.getHours() * 60 + now.getMinutes();
+    const todayDay = now.getDay();
+
+    let next = null;
+    let minDiff = Infinity;
+
+    schedules.filter(s => s.active).forEach(s => {
+      const [h, m] = s.time.split(':').map(Number);
+      const sMins = h * 60 + m;
+      if (s.days.includes(todayDay)) {
+        const diff = sMins > nowMins ? sMins - nowMins : 1440 - nowMins + sMins;
+        if (diff < minDiff) { minDiff = diff; next = s; }
+      }
+    });
+
+    const el = document.getElementById('next-msg');
+    if (next) {
+      const h = Math.floor(minDiff / 60), m = minDiff % 60;
+      el.textContent = `Следующее: "${next.phrase}" в ${next.time} (через ${h > 0 ? h+'ч ' : ''}${m}мин)`;
+    } else {
+      el.textContent = schedules.filter(s=>s.active).length ? 'Нет напоминаний на сегодня' : '';
+    }
+  }
+
+  function wasSentThisMinute(id) {
+    const now = new Date();
+    const key = 'sent-' + id + '-' + now.getHours() + '-' + now.getMinutes() + '-' + now.getDay();
+    if (localStorage.getItem(key)) return true;
+    localStorage.setItem(key, '1');
+    setTimeout(() => localStorage.removeItem(key), 90000);
+    return false;
+  }
+
+  // Check birthday events
+  function checkEvents() {
+    const events = JSON.parse(localStorage.getItem('vb-events') || '[]');
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const hour = now.getHours();
+    const min = now.getMinutes();
+
+    events.forEach(e => {
+      const eDate = e.repeat ? e.date.slice(5) : e.date; // MM-DD or YYYY-MM-DD
+      const todaySlice = e.repeat ? today.slice(5) : today;
+      if (eDate === todaySlice && hour === 10 && min < 2) {
+        const sentKey = 'event-sent-' + e.date + '-' + today;
+        if (!localStorage.getItem(sentKey) && connected) {
+          ws.send(JSON.stringify({ type: 'phrase_message', text: '🎂 ' + e.msg }));
+          localStorage.setItem(sentKey, '1');
+          log('🎂 Событие отправлено: ' + e.title);
+          // Save to activity
+          const now2 = new Date();
+          const time = now2.getHours().toString().padStart(2,'0') + ':' + now2.getMinutes().toString().padStart(2,'0');
+          const activity = JSON.parse(localStorage.getItem('vb-activity') || '[]');
+          activity.unshift({ msg: '🎂 ' + e.msg, icon: '🎂', time, type: 'phrase', name: 'Ты' });
+          localStorage.setItem('vb-activity', JSON.stringify(activity));
+        }
+      }
+    });
+  }
+
+  function startChecker() {
+    if (checkInterval) clearInterval(checkInterval);
+    checkInterval = setInterval(() => {
+      const now = new Date();
+      const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+      const day = now.getDay();
+
+      schedules.filter(s => s.active && s.time === timeStr && s.days.includes(day)).forEach(s => {
+        if (connected && !wasSentThisMinute(s.id)) {
+          ws.send(JSON.stringify({ type: 'phrase_message', text: s.phrase }));
+          console.log('Sent:', s.phrase);
+          // Save to shared log
+          const now = new Date();
+          const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+          const log = JSON.parse(localStorage.getItem('vb-activity') || '[]');
+          log.unshift({ msg: s.phrase, icon: '⏰', time, type: 'phrase' });
+          if (log.length > 20) log.pop();
+          localStorage.setItem('vb-activity', JSON.stringify(log));
+        }
+      });
+      updateNextMsg();
+      checkEvents();
+    }, 10000);
+  }
+
+  render();
+</script>
+</body>
+</html>

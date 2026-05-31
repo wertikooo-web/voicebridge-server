@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>VoiceBridge — Фразы</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --purple: #7c5cbf; --purple-light: #ede9f8; --bg: #f8f7ff; --white: #fff; --border: #e5e7eb; --text: #1a1a2e; --text-dim: #6b7280; --radius: 16px; }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); min-height: 100vh; display: flex; flex-direction: column; }
+    .header { display: flex; align-items: center; gap: 12px; padding: 20px 20px 16px; background: var(--white); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+    .back { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--purple); padding: 4px; }
+    h1 { font-size: 18px; font-weight: 700; color: var(--text); }
+    .content { flex: 1; padding: 16px; padding-bottom: 100px; }
+    .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #9ca3af; margin: 16px 0 8px 4px; }
+
+    /* Add new phrase */
+    .add-card { background: var(--white); border-radius: var(--radius); padding: 16px; margin-bottom: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .add-row { display: flex; gap: 8px; }
+    .emoji-btn { background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 14px; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+    .phrase-input { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-size: 14px; outline: none; font-family: 'Inter', sans-serif; }
+    .phrase-input:focus { border-color: var(--purple); }
+    .btn-add { background: var(--purple); color: white; border: none; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 600; cursor: pointer; margin-top: 10px; width: 100%; }
+
+    /* Emoji picker */
+    .emoji-picker { background: var(--white); border-radius: var(--radius); padding: 12px; margin-top: 8px; display: none; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+    .emoji-picker.show { display: block; }
+    .emoji-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+    .emoji-option { font-size: 22px; cursor: pointer; padding: 6px; border-radius: 8px; }
+    .emoji-option:active { background: var(--purple-light); }
+
+    /* Phrase list */
+    .phrase-item { background: var(--white); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .phrase-icon { font-size: 22px; flex-shrink: 0; }
+    .phrase-text { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
+    .phrase-actions { display: flex; gap: 6px; }
+    .btn-send { background: var(--purple-light); border: none; border-radius: 8px; padding: 7px 12px; font-size: 12px; font-weight: 600; color: var(--purple); cursor: pointer; }
+    .btn-edit { background: #e0f2fe; border: none; border-radius: 8px; padding: 7px 10px; font-size: 14px; cursor: pointer; }
+    .btn-del { background: #fee2e2; border: none; border-radius: 8px; padding: 7px 10px; font-size: 14px; cursor: pointer; }
+    .sent-flash { animation: flash 0.5s ease; }
+    @keyframes flash { 0%,100%{background:var(--white)} 50%{background:#f0fdf4} }
+
+    /* Bottom nav */
+    .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: var(--white); border-top: 1px solid var(--border); display: flex; padding: 8px 0 12px; z-index: 100; }
+    .nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; padding: 4px 0; }
+    .nav-icon { font-size: 20px; }
+    .nav-label { font-size: 10px; font-weight: 500; color: var(--text-dim); }
+    .nav-item.active .nav-label { color: var(--purple); font-weight: 700; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <button class="back" onclick="window.location.href='/'">←</button>
+  <h1>💬 Быстрые фразы</h1>
+</div>
+
+<div class="content">
+  <div class="section-label">Добавить новую фразу</div>
+  <div class="add-card">
+    <div class="add-row">
+      <button class="emoji-btn" id="selected-emoji" onclick="toggleEmojiPicker()">💬</button>
+      <input class="phrase-input" id="new-phrase" placeholder="Введи текст фразы..." maxlength="80"/>
+    </div>
+    <div class="emoji-picker" id="emoji-picker">
+      <div class="emoji-grid" id="emoji-grid"></div>
+    </div>
+    <button class="btn-add" id="phrase-save-btn" onclick="savePhraseForm()">➕ Добавить фразу</button>
+  </div>
+
+  <div class="section-label">Все фразы</div>
+  <div id="phrases-list"></div>
+</div>
+
+<div class="bottom-nav">
+  <div class="nav-item" onclick="window.location.href='/'"><span class="nav-icon">🏠</span><span class="nav-label">Главная</span></div>
+  <div class="nav-item active"><span class="nav-icon">💬</span><span class="nav-label">Фразы</span></div>
+  <div class="nav-item" onclick="window.location.href='/schedule.html'"><span class="nav-icon">🕐</span><span class="nav-label">Расписание</span></div>
+  <div class="nav-item"><span class="nav-icon">👨‍👩‍👧</span><span class="nav-label">Семья</span></div>
+  <div class="nav-item" onclick="window.location.href='/settings.html'"><span class="nav-icon">⚙️</span><span class="nav-label">Настройки</span></div>
+</div>
+
+<script>
+const EMOJIS = ['☀️','❤️','🌙','👋','🏃','💕','🍽️','📞','😊','🏡','💊','🥗','🎂','🌸','🤗','💪','🙏','🎵','☕','🌺','🍎','🌟','👴','👵','🐱','🐶','✈️','🏖️','❄️','🌈'];
+
+const DEFAULT_PHRASES = [
+  { id: 1, emoji: '☀️', text: 'Доброе утро!' },
+  { id: 2, emoji: '❤️', text: 'Думаю о тебе ❤️' },
+  { id: 3, emoji: '🌙', text: 'Спокойной ночи!' },
+  { id: 4, emoji: '👋', text: 'Как ты?' },
+  { id: 5, emoji: '🏃', text: 'Скоро буду!' },
+  { id: 6, emoji: '💕', text: 'Люблю тебя!' },
+  { id: 7, emoji: '🍽️', text: 'Обедал?' },
+  { id: 8, emoji: '📞', text: 'Позвони мне!' },
+  { id: 9, emoji: '😊', text: 'Всё хорошо?' },
+  { id: 10, emoji: '🏡', text: 'Жди меня дома' },
+  { id: 11, emoji: '💊', text: 'Прими лекарство!' },
+  { id: 12, emoji: '🥗', text: 'Приятного аппетита!' },
+];
+
+let phrases = JSON.parse(localStorage.getItem('vb-phrases') || 'null') || DEFAULT_PHRASES;
+let selectedEmoji = '💬';
+let editingPhraseId = null;
+
+// WebSocket
+const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const ws = new WebSocket(protocol + '//' + location.host);
+ws.onopen = () => { ws.send(JSON.stringify({ type: 'register', role: 'sender' })); };
+
+// Emoji picker
+const grid = document.getElementById('emoji-grid');
+EMOJIS.forEach(e => {
+  const div = document.createElement('div');
+  div.className = 'emoji-option';
+  div.textContent = e;
+  div.onclick = () => {
+    selectedEmoji = e;
+    document.getElementById('selected-emoji').textContent = e;
+    document.getElementById('emoji-picker').classList.remove('show');
+  };
+  grid.appendChild(div);
+});
+
+function toggleEmojiPicker() {
+  document.getElementById('emoji-picker').classList.toggle('show');
+}
+
+function resetPhraseForm() {
+  editingPhraseId = null;
+  selectedEmoji = '💬';
+  document.getElementById('selected-emoji').textContent = '💬';
+  document.getElementById('new-phrase').value = '';
+  document.getElementById('phrase-save-btn').textContent = '➕ Добавить фразу';
+}
+
+function savePhraseForm() {
+  const text = document.getElementById('new-phrase').value.trim();
+  if (!text) { alert('Введи текст фразы!'); return; }
+  if (editingPhraseId !== null) {
+    const phrase = phrases.find(p => p.id === editingPhraseId);
+    if (phrase) {
+      phrase.emoji = selectedEmoji;
+      phrase.text = text;
+    }
+    save();
+    render();
+    resetPhraseForm();
+    return;
+  }
+  const phrase = { id: Date.now(), emoji: selectedEmoji, text };
+  phrases.unshift(phrase);
+  save();
+  render();
+  resetPhraseForm();
+}
+
+function editPhrase(id) {
+  const phrase = phrases.find(p => p.id === id);
+  if (!phrase) return;
+  editingPhraseId = id;
+  selectedEmoji = phrase.emoji || '💬';
+  document.getElementById('selected-emoji').textContent = selectedEmoji;
+  document.getElementById('new-phrase').value = phrase.text || '';
+  document.getElementById('phrase-save-btn').textContent = '✓ Сохранить фразу';
+  document.getElementById('new-phrase').focus();
+}
+
+function deletePhrase(id) {
+  if (editingPhraseId === id) resetPhraseForm();
+  phrases = phrases.filter(p => p.id !== id);
+  save();
+  render();
+}
+
+function sendPhrase(id) {
+  const phrase = phrases.find(p => p.id === id);
+  if (!phrase) return;
+  const text = phrase.emoji + ' ' + phrase.text;
+  ws.send(JSON.stringify({ type: 'phrase_message', text }));
+  // Save to activity log
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const log = JSON.parse(localStorage.getItem('vb-activity') || '[]');
+  log.unshift({ msg: text, icon: '💬', time, type: 'phrase', name: 'Ты' });
+  if (log.length > 20) log.pop();
+  localStorage.setItem('vb-activity', JSON.stringify(log));
+  // Flash item
+  const item = document.getElementById('item-' + id);
+  if (item) { item.classList.add('sent-flash'); setTimeout(() => item.classList.remove('sent-flash'), 500); }
+}
+
+function save() {
+  localStorage.setItem('vb-phrases', JSON.stringify(phrases));
+}
+
+function render() {
+  const list = document.getElementById('phrases-list');
+  if (!phrases.length) {
+    list.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Нет фраз. Добавь первую!</div>';
+    return;
+  }
+  list.innerHTML = phrases.map(p => `
+    <div class="phrase-item" id="item-${p.id}">
+      <span class="phrase-icon">${p.emoji}</span>
+      <span class="phrase-text">${p.text}</span>
+      <div class="phrase-actions">
+        <button class="btn-send" onclick="sendPhrase(${p.id})">Отправить</button>
+        <button class="btn-edit" onclick="editPhrase(${p.id})">✎</button>
+        <button class="btn-del" onclick="deletePhrase(${p.id})">🗑</button>
+      </div>
+    </div>`).join('');
+}
+
+render();
+</script>
+</body>
+</html>
