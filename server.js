@@ -308,6 +308,7 @@ wss.on("connection", (ws, req) => {
         mimeType: data.mimeType || 'audio/wav',
       });
     }
+    if (data.type === 'keepalive') { return; }
     if (data.type === 'remind_later_ack' && phoneB) {
       safeSend(phoneB, { type: 'remind_later_ack', minutes: data.minutes });
     }
