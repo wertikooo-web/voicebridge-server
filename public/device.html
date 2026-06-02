@@ -881,6 +881,14 @@
         _wsReconnectDelay = 1000; // сброс backoff при успешном подключении
         window.voiceBridgeConnected = true;
         ws.send(JSON.stringify({ type: 'register', role: 'receiver' }));
+
+        // Keepalive every 5 sec to prevent Railway proxy from closing connection
+        if (window._wsKeepaliveTimer) clearInterval(window._wsKeepaliveTimer);
+        window._wsKeepaliveTimer = setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'keepalive' }));
+            }
+        }, 5000);
         document.addEventListener('pointerdown', function unlockAudio(){
           try{ const ctx=new(window.AudioContext||window.webkitAudioContext)(); ctx.resume(); ctx.close(); }catch(e){}
           document.removeEventListener('pointerdown', unlockAudio);
@@ -891,6 +899,7 @@
       };
 
       ws.onclose = (e) => {
+        if (window._wsKeepaliveTimer) { clearInterval(window._wsKeepaliveTimer); window._wsKeepaliveTimer = null; }
         window.voiceBridgeConnected = false;
         document.getElementById('status').textContent = 'Нет соединения... Переподключение';
         window.voiceBridge3D?.handleDeviceAction('offline');

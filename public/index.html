@@ -974,6 +974,13 @@ function connectWebSocket() {
     sendSocket({ type: 'register', role: 'sender' });
     sendProfileSync();
     updatePhoneConnection(true);
+    // Keepalive every 5 sec for Railway proxy
+    if (window._wsKeepaliveTimer) clearInterval(window._wsKeepaliveTimer);
+    window._wsKeepaliveTimer = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        sendSocket({ type: 'keepalive' });
+      }
+    }, 5000);
   };
   ws.onclose = () => {
     role = null;
