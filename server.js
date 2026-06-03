@@ -9,7 +9,7 @@ const crypto = require("crypto");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const HEARTBEAT_INTERVAL_MS = 10000;
+const HEARTBEAT_INTERVAL_MS = 2000;  /* 2 sec — Railway proxy keepalive */
 const PORT = process.env.PORT || 3000;
 const AUDIO_DIR = path.join(__dirname, "public", "audio");
 
@@ -345,6 +345,9 @@ const heartbeat = setInterval(() => {
 wss.on("close", () => {
   clearInterval(heartbeat);
 });
+
+server.keepAliveTimeout = 65000;   /* keep Railway connection alive */
+server.headersTimeout   = 66000;
 
 server.listen(PORT, () => {
   console.log(`VoiceBridge test server running on http://localhost:${PORT}`);
