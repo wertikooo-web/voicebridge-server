@@ -882,13 +882,16 @@
         window.voiceBridgeConnected = true;
         ws.send(JSON.stringify({ type: 'register', role: 'receiver' }));
 
-        // Keepalive every 5 sec to prevent Railway proxy from closing connection
+        // Immediate keepalive + every 2 sec for Railway proxy
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'keepalive' }));
+        }
         if (window._wsKeepaliveTimer) clearInterval(window._wsKeepaliveTimer);
         window._wsKeepaliveTimer = setInterval(() => {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({ type: 'keepalive' }));
             }
-        }, 5000);
+        }, 2000);
         document.addEventListener('pointerdown', function unlockAudio(){
           try{ const ctx=new(window.AudioContext||window.webkitAudioContext)(); ctx.resume(); ctx.close(); }catch(e){}
           document.removeEventListener('pointerdown', unlockAudio);
