@@ -9,7 +9,7 @@ const crypto = require("crypto");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const HEARTBEAT_INTERVAL_MS = 25000;
+const HEARTBEAT_INTERVAL_MS = 10000;
 const PORT = process.env.PORT || 3000;
 const AUDIO_DIR = path.join(__dirname, "public", "audio");
 
@@ -191,6 +191,10 @@ wss.on("connection", (ws, req) => {
     if (data.type === "register" && data.role === "scheduler") {
       console.log("Scheduler registered");
     }
+    if (data.type === "keepalive") {
+      /* ESP32 keep-alive ping — соединение живое, Railway не режет */
+      ws.isAlive = true;
+    }
     if (data.type === "audio_message" && phoneB) {
       const text = data.text || data.transcript || "";
       const audioFiles = saveAudioFiles(data, ws);
@@ -308,7 +312,6 @@ wss.on("connection", (ws, req) => {
         mimeType: data.mimeType || 'audio/wav',
       });
     }
-    if (data.type === 'keepalive') { return; }
     if (data.type === 'remind_later_ack' && phoneB) {
       safeSend(phoneB, { type: 'remind_later_ack', minutes: data.minutes });
     }
@@ -342,9 +345,6 @@ const heartbeat = setInterval(() => {
 wss.on("close", () => {
   clearInterval(heartbeat);
 });
-
-server.keepAliveTimeout = 65000;
-server.headersTimeout = 66000;
 
 server.listen(PORT, () => {
   console.log(`VoiceBridge test server running on http://localhost:${PORT}`);
