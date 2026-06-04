@@ -1,4 +1,4 @@
-const VERSION = '3.2-push';
+const VERSION = '3.3-push';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -55,12 +55,13 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, notificationOptions(data)));
 });
 
-async function focusOrOpen(url) {
+async function focusOrOpen(url, action) {
   const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   const targetUrl = new URL(url, self.location.origin).href;
 
   for (const client of allClients) {
     if ('focus' in client) {
+      client.postMessage({ type: 'voicebridge_push_action', action });
       await client.focus();
       if ('navigate' in client) return client.navigate(targetUrl);
       return client;
@@ -77,13 +78,16 @@ self.addEventListener('notificationclick', (event) => {
   const url = new URL(baseUrl, self.location.origin);
 
   const type = event.notification.data?.type;
+  let action = 'answer';
   if (event.action === 'remind') {
+    action = 'remind';
     url.searchParams.set('pushAction', 'remind');
   } else if (type === 'help_request') {
+    action = 'sos';
     url.searchParams.set('pushAction', 'sos');
   } else {
     url.searchParams.set('pushAction', 'answer');
   }
 
-  event.waitUntil(focusOrOpen(url.href));
+  event.waitUntil(focusOrOpen(url.href, action));
 });

@@ -822,20 +822,22 @@ function initPushNotifications() {
   enablePushNotifications().catch(() => {});
 }
 
+function applyPushAction(action) {
+  if (action === 'answer') {
+    cancelReminder();
+    hideReminderChip();
+    answerNotif();
+  }
+  if (action === 'remind') remindLater(5);
+  if (action === 'sos') showSOS();
+}
+
 function handlePushLaunchAction() {
   const params = new URLSearchParams(location.search);
   const action = params.get('pushAction');
   if (!action) return;
   history.replaceState({}, '', location.pathname);
-  setTimeout(() => {
-    if (action === 'answer') {
-      cancelReminder();
-      hideReminderChip();
-      answerNotif();
-    }
-    if (action === 'remind') remindLater(5);
-    if (action === 'sos') showSOS();
-  }, 600);
+  setTimeout(() => applyPushAction(action), 600);
 }
 
 function applyProfileImages() {
@@ -870,6 +872,14 @@ window.addEventListener('load', () => {
   handlePushLaunchAction();
 });
 window.addEventListener('pointerdown', initPushNotifications, { once: true });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', event => {
+    const data = event.data || {};
+    if (data.type === 'voicebridge_push_action') {
+      applyPushAction(data.action);
+    }
+  });
+}
 window.addEventListener('storage', event => {
   if (event.key === 'vb-my-avatar' || event.key === 'vb-profile-avatar' || event.key === 'vb-my-name') {
     applyProfileImages();
