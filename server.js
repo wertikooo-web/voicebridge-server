@@ -5,6 +5,7 @@ const os = require("os");
 const WebSocket = require("ws");
 const path = require("path");
 const crypto = require("crypto");
+const webpush = require("web-push");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,8 +14,20 @@ const HEARTBEAT_INTERVAL_MS = Number(process.env.WS_HEARTBEAT_INTERVAL_MS || 250
 const HEARTBEAT_TIMEOUT_MS = Number(process.env.WS_HEARTBEAT_TIMEOUT_MS || 90000);
 const PORT = process.env.PORT || 3000;
 const AUDIO_DIR = path.join(__dirname, "public", "audio");
+const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
+const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:support@voicebridge.local";
+const pushSubscriptions = new Map();
 
 fs.mkdirSync(AUDIO_DIR, { recursive: true });
+
+if (VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} else {
+  console.warn("Web Push disabled: set VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY");
+}
+
+app.use(express.json({ limit: "1mb" }));
 
 app.use((req, res, next) => {
   if (req.path === "/" || req.path.endsWith(".html") || req.path === "/sw.js") {
@@ -119,6 +132,67 @@ function broadcastStatus() {
 app.get("/api/status", (req, res) => {
   res.json(connectionStatus());
 });
+
+app.get("/api/push/vapid-public-key", (req, res) => {
+  if (!VAPID_PUBLIC_KEY) return res.status(503).json({ error: "VAPID public key is not configured" });
+  res.json({ publicKey: VAPID_PUBLIC_KEY });
+});
+
+app.post("/api/push/subscribe", (req, res) => {
+  const subscription = req.body;
+  if (!subscription || !subscription.endpoint) {
+    return res.status(400).json({ error: "Invalid push subscription" });
+  }
+
+  pushSubscriptions.set(subscription.endpoint, subscription);
+  console.log(`Push subscription saved (${pushSubscriptions.size} total)`);
+  res.json({ ok: true, subscriptions: pushSubscriptions.size });
+});
+
+app.post("/api/push/unsubscribe", (req, res) => {
+  const endpoint = req.body?.endpoint;
+  if (endpoint) pushSubscriptions.delete(endpoint);
+  res.json({ ok: true, subscriptions: pushSubscriptions.size });
+});
+
+async function sendPushToAll(payload) {
+  if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || pushSubscriptions.size === 0) return;
+  const body = JSON.stringify(payload);
+  const tasks = Array.from(pushSubscriptions.entries()).map(async ([endpoint, subscription]) => {
+    try {
+      await webpush.sendNotification(subscription, body);
+    } catch (error) {
+      if (error.statusCode === 404 || error.statusCode === 410) {
+        pushSubscriptions.delete(endpoint);
+      }
+      console.log("Push send failed:", error.statusCode || "", error.message);
+    }
+  });
+  await Promise.allSettled(tasks);
+}
+
+function notifyDadWantsToTalk() {
+  return sendPushToAll({
+    type: "dad_wants_to_talk",
+    title: "\uD83D\uDC4B \u0425\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
+    body: "\u041F\u0430\u043F\u0430 \u0445\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
+    tag: "dad-wants-to-talk",
+    url: "/?pushAction=answer",
+    actions: ["answer", "remind"]
+  });
+}
+
+function notifyHelpRequest() {
+  return sendPushToAll({
+    type: "help_request",
+    title: "\uD83C\uDD98 SOS \u0441\u0438\u0433\u043D\u0430\u043B!",
+    body: "\u041D\u0435\u043C\u0435\u0434\u043B\u0435\u043D\u043D\u043E \u0441\u0432\u044F\u0436\u0438\u0442\u0435\u0441\u044C.",
+    tag: "help-request",
+    requireInteraction: true,
+    url: "/?pushAction=sos",
+    actions: ["answer"]
+  });
+}
 
 function cleanupClient(ws) {
   const changed = senders.delete(ws) || ws === phoneB;
@@ -265,17 +339,20 @@ wss.on("connection", (ws, req) => {
       console.log(`reply_message -> ${senders.size} sender(s)`);
       broadcastToSenders(data);
     }
-    if (data.type === "dad_wants_to_talk" && senders.size) {
-      console.log(`dad_wants_to_talk -> ${senders.size} sender(s)`);
-      broadcastToSenders({ type: "dad_wants_to_talk" });
+    if (data.type === "dad_wants_to_talk") {
+      console.log(`dad_wants_to_talk -> ${senders.size} sender(s), push=${pushSubscriptions.size}`);
+      if (senders.size) broadcastToSenders({ type: "dad_wants_to_talk" });
+      notifyDadWantsToTalk();
     }
-    if (data.type === "wants_to_talk" && senders.size) {
-      console.log(`wants_to_talk -> ${senders.size} sender(s)`);
-      broadcastToSenders({ type: "dad_wants_to_talk" });
+    if (data.type === "wants_to_talk") {
+      console.log(`wants_to_talk -> ${senders.size} sender(s), push=${pushSubscriptions.size}`);
+      if (senders.size) broadcastToSenders({ type: "dad_wants_to_talk" });
+      notifyDadWantsToTalk();
     }
-    if (data.type === "help_request" && senders.size) {
-      console.log(`help_request -> ${senders.size} sender(s)`);
-      broadcastToSenders({ type: "help_request" });
+    if (data.type === "help_request") {
+      console.log(`help_request -> ${senders.size} sender(s), push=${pushSubscriptions.size}`);
+      if (senders.size) broadcastToSenders({ type: "help_request" });
+      notifyHelpRequest();
     }
     if (data.type === "sos_acknowledged" && phoneB) {
       console.log("sos_acknowledged -> receiver");
