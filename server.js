@@ -138,6 +138,13 @@ app.get("/api/push/vapid-public-key", (req, res) => {
   res.json({ publicKey: VAPID_PUBLIC_KEY });
 });
 
+app.get("/api/push/status", (req, res) => {
+  res.json({
+    enabled: Boolean(VAPID_PUBLIC_KEY && VAPID_PRIVATE_KEY),
+    subscriptions: pushSubscriptions.size
+  });
+});
+
 app.post("/api/push/subscribe", (req, res) => {
   const subscription = req.body;
   if (!subscription || !subscription.endpoint) {
