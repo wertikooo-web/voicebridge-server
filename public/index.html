@@ -21,6 +21,43 @@
     }
     html, body { height: 100%; background: var(--bg); font-family: 'Inter', sans-serif; color: var(--text); overflow: hidden; }
     body { display: flex; flex-direction: column; max-width: 430px; margin: 0 auto; }
+    .app-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      background:
+        radial-gradient(circle at 50% 38%, rgba(196, 130, 255, 0.22), transparent 34%),
+        linear-gradient(180deg, #fffaff 0%, #f8f1ff 58%, #f1ecff 100%);
+      transition: opacity 0.42s ease, visibility 0.42s ease;
+    }
+    .app-splash.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .app-splash-icon {
+      width: 144px;
+      height: 144px;
+      border-radius: 50%;
+      object-fit: contain;
+      filter: drop-shadow(0 18px 34px rgba(124, 92, 191, 0.22));
+      animation: splash-breathe 1.8s ease-in-out infinite;
+    }
+    .app-splash-title {
+      color: #2f2549;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+    }
+    @keyframes splash-breathe {
+      0%, 100% { transform: scale(1); filter: drop-shadow(0 18px 34px rgba(124, 92, 191, 0.22)); }
+      50% { transform: scale(1.035); filter: drop-shadow(0 22px 44px rgba(124, 92, 191, 0.3)); }
+    }
     .header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 12px; background: var(--white); border-bottom: 1px solid var(--border); flex-shrink: 0; }
     .logo { display: flex; align-items: center; gap: 8px; font-size: 18px; font-weight: 700; }
     .header-right { display: flex; align-items: center; gap: 12px; }
@@ -604,6 +641,11 @@
 </head>
 <body>
 
+<div class="app-splash" id="app-splash" aria-hidden="true">
+  <img class="app-splash-icon" src="/icon-512.png" alt=""/>
+  <div class="app-splash-title">VOICE BRIDGE</div>
+</div>
+
 <div class="header">
   <div class="logo">💜 VoiceBridge</div>
   <div class="header-right">
@@ -853,6 +895,12 @@ function handlePushLaunchAction() {
   setTimeout(() => applyPushAction(action), 600);
 }
 
+function hideAppSplash() {
+  setTimeout(() => {
+    document.getElementById('app-splash')?.classList.add('hidden');
+  }, 1100);
+}
+
 function applyProfileImages() {
   const avatar = localStorage.getItem('vb-profile-avatar');
   const orb = document.getElementById('device-orb');
@@ -880,6 +928,7 @@ function applyProfileImages() {
 }
 
 window.addEventListener('load', () => {
+  hideAppSplash();
   applyProfileImages();
   initPushNotifications();
   handlePushLaunchAction();

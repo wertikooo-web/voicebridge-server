@@ -1,4 +1,4 @@
-const VERSION = '3.6-cache';
+const VERSION = '3.7-splash';
 const APP_SHELL_CACHE = 'voicebridge-shell-' + VERSION;
 const APP_SHELL_FILES = [
   '/',
