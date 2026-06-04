@@ -9,7 +9,8 @@ const crypto = require("crypto");
 const app = express();
 const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
-const HEARTBEAT_INTERVAL_MS = 2000;  /* 2 sec — Railway proxy keepalive */
+const HEARTBEAT_INTERVAL_MS = Number(process.env.WS_HEARTBEAT_INTERVAL_MS || 25000);
+const HEARTBEAT_TIMEOUT_MS = Number(process.env.WS_HEARTBEAT_TIMEOUT_MS || 90000);
 const PORT = process.env.PORT || 3000;
 const AUDIO_DIR = path.join(__dirname, "public", "audio");
 
@@ -125,6 +126,12 @@ function cleanupClient(ws) {
   if (changed) setTimeout(broadcastStatus, 0);
 }
 
+function markClientAlive(ws) {
+  if (!ws) return;
+  ws.isAlive = true;
+  ws.lastSeen = Date.now();
+}
+
 function replaceClient(currentClient, nextClient, roleName) {
   if (currentClient && currentClient !== nextClient) {
     console.log(`Replacing stale ${roleName} connection`);
@@ -160,15 +167,16 @@ function broadcastToSenders(data, excludeWs) {
 
 wss.on("connection", (ws, req) => {
   console.log("Client connected");
-  ws.isAlive = true;
+  markClientAlive(ws);
   ws.requestHost = req.headers.host;
   ws.requestProto = (req.headers["x-forwarded-proto"] || (req.socket.encrypted ? "https" : "http")).split(",")[0].trim();
 
   ws.on("pong", () => {
-    ws.isAlive = true;
+    markClientAlive(ws);
   });
 
   ws.on("message", (message) => {
+    markClientAlive(ws);
     let data;
     try {
       data = JSON.parse(message);
@@ -192,8 +200,7 @@ wss.on("connection", (ws, req) => {
       console.log("Scheduler registered");
     }
     if (data.type === "keepalive") {
-      /* ESP32 keep-alive ping — соединение живое, Railway не режет */
-      ws.isAlive = true;
+      return;
     }
     if (data.type === "audio_message" && phoneB) {
       const text = data.text || data.transcript || "";
@@ -329,16 +336,24 @@ wss.on("connection", (ws, req) => {
 });
 
 const heartbeat = setInterval(() => {
+  const now = Date.now();
   wss.clients.forEach((ws) => {
-    if (!ws.isAlive) {
-      console.log("Terminating stale client");
+    const lastSeen = ws.lastSeen || now;
+    if (now - lastSeen > HEARTBEAT_TIMEOUT_MS) {
+      console.log(`Terminating stale client (${ws.role || "unregistered"}, last seen ${Math.round((now - lastSeen) / 1000)}s ago)`);
       cleanupClient(ws);
       ws.terminate();
       return;
     }
 
     ws.isAlive = false;
-    ws.ping();
+    try {
+      ws.ping();
+    } catch (error) {
+      console.log("WebSocket ping failed:", error.message);
+      cleanupClient(ws);
+      ws.terminate();
+    }
   });
 }, HEARTBEAT_INTERVAL_MS);
 
