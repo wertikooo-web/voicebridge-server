@@ -828,7 +828,11 @@ function handlePushLaunchAction() {
   if (!action) return;
   history.replaceState({}, '', location.pathname);
   setTimeout(() => {
-    if (action === 'answer') answerNotif();
+    if (action === 'answer') {
+      cancelReminder();
+      hideReminderChip();
+      answerNotif();
+    }
     if (action === 'remind') remindLater(5);
     if (action === 'sos') showSOS();
   }, 600);
@@ -1850,6 +1854,8 @@ function setDirectLineMode(enabled, options = {}) {
   }
 }
 function answerNotif() {
+  cancelReminder();
+  hideReminderChip();
   if (document.getElementById('notif-title')?.textContent === 'Прямая связь') {
     if (directLineMode) {
       setDirectLineMode(false);

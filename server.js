@@ -177,7 +177,7 @@ function notifyDadWantsToTalk() {
     title: "\uD83D\uDC4B \u0425\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
     body: "\u041F\u0430\u043F\u0430 \u0445\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
     tag: "dad-wants-to-talk",
-    url: "/?pushAction=answer",
+    url: "/",
     actions: ["answer", "remind"]
   });
 }
@@ -189,7 +189,7 @@ function notifyHelpRequest() {
     body: "\u041D\u0435\u043C\u0435\u0434\u043B\u0435\u043D\u043D\u043E \u0441\u0432\u044F\u0436\u0438\u0442\u0435\u0441\u044C.",
     tag: "help-request",
     requireInteraction: true,
-    url: "/?pushAction=sos",
+    url: "/",
     actions: ["answer"]
   });
 }
