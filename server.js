@@ -185,7 +185,7 @@ function notifyDadWantsToTalk() {
     body: "\u041F\u0430\u043F\u0430 \u0445\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
     tag: "dad-wants-to-talk",
     url: "/",
-    actions: ["answer", "remind"]
+    actions: ["answer"]
   });
 }
 

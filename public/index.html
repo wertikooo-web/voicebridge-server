@@ -823,14 +823,15 @@ function initPushNotifications() {
 }
 
 function applyPushAction(action) {
-  if (action !== 'remind') {
-    cancelReminder();
-    hideReminderChip();
-  }
+  cancelReminder();
+  hideReminderChip();
   if (action === 'answer') {
     answerNotif();
   }
-  if (action === 'remind') remindLater(5);
+  if (action === 'remind') {
+    showNotif('👋 Хочет поговорить', '', true);
+    document.getElementById('notif-icon')?.classList.add('ringing');
+  }
   if (action === 'sos') showSOS();
 }
 
