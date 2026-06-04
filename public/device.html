@@ -107,7 +107,9 @@
       font-size: 13px;
     }
     .status-ok { color: #4ade80; }
-    .status-bad { color: #f87171; }
+    .status-checking { color: #fbbf24; }
+    .status-unstable { color: #fb923c; }
+    .status-bad { color: #94a3b8; }
     .dot {
       display: inline-block;
       width: 8px;
@@ -187,8 +189,21 @@
       width: 10px;
       height: 10px;
       border-radius: 50%;
-      background: #ef4444;
-      box-shadow: 0 0 14px rgba(239,68,68,0.58);
+      background: #94a3b8;
+      box-shadow: 0 0 12px rgba(148,163,184,0.42);
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+    }
+    .connection-dot.checking::before {
+      background: #fbbf24;
+      box-shadow: 0 0 15px rgba(251,191,36,0.58);
+    }
+    .connection-dot.unstable::before {
+      background: #fb923c;
+      box-shadow: 0 0 16px rgba(251,146,60,0.62);
+    }
+    .connection-dot.offline::before {
+      background: #94a3b8;
+      box-shadow: 0 0 12px rgba(148,163,184,0.42);
     }
     .connection-dot.on::before {
       background: #22c55e;
@@ -646,17 +661,55 @@
       el.innerHTML = '<div>→ ' + currentTime() + ' · ' + msg + '</div>' + el.innerHTML;
     }
 
+    const CONNECTION_CHECKING_MS = 60 * 1000;
+    const CONNECTION_OFFLINE_MS = 2 * 60 * 1000;
+    const softConnection = { sender: { lostAt: null }, receiver: { lostAt: null }, timer: null, lastData: null };
+
+    function getSoftConnectionView(role, isOnline, onlineText) {
+      const bucket = softConnection[role];
+      if (isOnline) {
+        bucket.lostAt = null;
+        return { state: 'online', text: onlineText, className: 'status-ok' };
+      }
+      if (!bucket.lostAt) bucket.lostAt = Date.now();
+      const elapsed = Date.now() - bucket.lostAt;
+      if (elapsed < CONNECTION_CHECKING_MS) return { state: 'checking', text: '\u043F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0441\u0432\u044F\u0437\u044C', className: 'status-checking' };
+      if (elapsed < CONNECTION_OFFLINE_MS) return { state: 'unstable', text: '\u0441\u0432\u044F\u0437\u044C \u043D\u0435\u0441\u0442\u0430\u0431\u0438\u043B\u044C\u043D\u0430', className: 'status-unstable' };
+      return { state: 'offline', text: '\u043D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438', className: 'status-bad' };
+    }
+
+    function scheduleSoftConnectionRefresh() {
+      clearTimeout(softConnection.timer);
+      const lostAt = [softConnection.sender.lostAt, softConnection.receiver.lostAt].filter(Boolean).sort()[0];
+      if (!lostAt || !softConnection.lastData) return;
+      const elapsed = Date.now() - lostAt;
+      const nextAt = elapsed < CONNECTION_CHECKING_MS ? CONNECTION_CHECKING_MS : elapsed < CONNECTION_OFFLINE_MS ? CONNECTION_OFFLINE_MS : null;
+      if (nextAt === null) return;
+      softConnection.timer = setTimeout(() => setConnectionStatus(softConnection.lastData), Math.max(250, nextAt - elapsed + 50));
+    }
+
+    function applyIndicatorState(el, state) {
+      if (!el) return;
+      el.classList.remove('on', 'checking', 'unstable', 'offline');
+      el.classList.add(state === 'online' ? 'on' : state);
+    }
+
     function setConnectionStatus(data) {
+      softConnection.lastData = data;
       const sender = document.getElementById('sender-status');
       const receiver = document.getElementById('receiver-status');
       const senderIndicator = document.getElementById('sender-indicator');
       const receiverIndicator = document.getElementById('receiver-indicator');
-      sender.textContent = data.senderConnected ? ((data.senderCount || 1) + ' подключено') : 'не подключено';
-      sender.className = data.senderConnected ? 'status-ok' : 'status-bad';
-      receiver.textContent = data.receiverConnected ? 'подключено' : 'не подключено';
-      receiver.className = data.receiverConnected ? 'status-ok' : 'status-bad';
-      if (senderIndicator) senderIndicator.classList.toggle('on', Boolean(data.senderConnected));
-      if (receiverIndicator) receiverIndicator.classList.toggle('on', Boolean(data.receiverConnected));
+      const senderView = getSoftConnectionView('sender', Boolean(data.senderConnected), ((data.senderCount || 1) + ' \u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E'));
+      const receiverView = getSoftConnectionView('receiver', Boolean(data.receiverConnected), '\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u043E');
+      sender.textContent = senderView.text;
+      sender.className = senderView.className;
+      receiver.textContent = receiverView.text;
+      receiver.className = receiverView.className;
+      applyIndicatorState(senderIndicator, senderView.state);
+      applyIndicatorState(receiverIndicator, receiverView.state);
+      if (receiverView.state === 'offline') window.voiceBridge3D?.handleDeviceAction('offline');
+      scheduleSoftConnectionRefresh();
     }
 
     function unlock() {
@@ -904,8 +957,7 @@
       ws.onclose = (e) => {
         if (window._wsKeepaliveTimer) { clearInterval(window._wsKeepaliveTimer); window._wsKeepaliveTimer = null; }
         window.voiceBridgeConnected = false;
-        document.getElementById('status').textContent = 'Нет соединения... Переподключение';
-        window.voiceBridge3D?.handleDeviceAction('offline');
+        document.getElementById('status').textContent = '\u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0441\u0432\u044F\u0437\u044C... \u041F\u0435\u0440\u0435\u043F\u043E\u0434\u043A\u043B\u044E\u0447\u0435\u043D\u0438\u0435';
         setConnectionStatus({ senderConnected: false, receiverConnected: false });
         log('WebSocket закрыт (код ' + e.code + '). Переподключение через ' + (_wsReconnectDelay/1000) + ' сек');
         scheduleReconnect();

@@ -32,7 +32,10 @@
     .device-info { flex: 1; min-width: 0; }
     .device-orb { width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(135deg, #e8e0f5, #c9b8e8); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
     .device-name { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .online-badge { background: #dcfce7; color: var(--green); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; }
+    .online-badge { background: #dcfce7; color: var(--green); font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 20px; transition: background 0.2s ease, color 0.2s ease; white-space: nowrap; }
+    .online-badge.checking { background: #fef3c7; color: #b45309; }
+    .online-badge.unstable { background: #ffedd5; color: #c2410c; }
+    .online-badge.offline { background: #f1f5f9; color: #64748b; }
     .device-location { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
     .device-battery { font-size: 12px; color: var(--green); margin-top: 4px; }
     .device-ready { margin-top: 6px; display: flex; align-items: center; gap: 6px; }
@@ -901,11 +904,42 @@ function setMiniDeviceState(state = 'idle', duration = 0) {
   }
 }
 
+const CONNECTION_CHECKING_MS = 60 * 1000;
+const CONNECTION_OFFLINE_MS = 2 * 60 * 1000;
+let deviceConnectionLostAt = null;
+let deviceConnectionTimer = null;
+
+function connectionBadgeState(isOnline) {
+  if (isOnline) return { state: 'online', text: '\u25CF Online' };
+  const elapsed = Date.now() - (deviceConnectionLostAt || Date.now());
+  if (elapsed < CONNECTION_CHECKING_MS) return { state: 'checking', text: '\u25CF \u041F\u0440\u043E\u0432\u0435\u0440\u044F\u0435\u043C \u0441\u0432\u044F\u0437\u044C' };
+  if (elapsed < CONNECTION_OFFLINE_MS) return { state: 'unstable', text: '\u25CF \u0421\u0432\u044F\u0437\u044C \u043D\u0435\u0441\u0442\u0430\u0431\u0438\u043B\u044C\u043D\u0430' };
+  return { state: 'offline', text: '\u25CF \u041D\u0435\u0442 \u0441\u0432\u044F\u0437\u0438' };
+}
+
+function scheduleConnectionBadgeRefresh() {
+  clearTimeout(deviceConnectionTimer);
+  if (!deviceConnectionLostAt) return;
+  const elapsed = Date.now() - deviceConnectionLostAt;
+  const nextAt = elapsed < CONNECTION_CHECKING_MS ? CONNECTION_CHECKING_MS : elapsed < CONNECTION_OFFLINE_MS ? CONNECTION_OFFLINE_MS : null;
+  if (nextAt === null) return;
+  deviceConnectionTimer = setTimeout(() => updatePhoneConnection(false), Math.max(250, nextAt - elapsed + 50));
+}
+
 function updatePhoneConnection(isOnline) {
   const badge = document.getElementById('online-badge');
   if (!badge) return;
-  badge.textContent = isOnline ? '● Online' : '● Offline';
-  badge.style.color = isOnline ? '' : '#ef4444';
+  if (isOnline) {
+    deviceConnectionLostAt = null;
+    clearTimeout(deviceConnectionTimer);
+  } else if (!deviceConnectionLostAt) {
+    deviceConnectionLostAt = Date.now();
+  }
+  const view = connectionBadgeState(Boolean(isOnline));
+  badge.textContent = view.text;
+  badge.classList.remove('checking', 'unstable', 'offline');
+  if (view.state !== 'online') badge.classList.add(view.state);
+  scheduleConnectionBadgeRefresh();
 }
 
 function callDevicePhone() {
@@ -996,6 +1030,10 @@ function connectWebSocket() {
 
 async function handleSocketMessage(event) {
   const data = JSON.parse(event.data);
+  if (data.type === 'connection_status') {
+    updatePhoneConnection(Boolean(data.receiverConnected));
+    return;
+  }
   if (data.type === 'activity_event' && data.activity) {
     const a = data.activity;
     addActivity(a.msg || '', a.icon || '•', a.type || 'system', a.sender || a.name || 'Ты', { duration: a.duration || null });
