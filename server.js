@@ -46,6 +46,7 @@ app.use(
 );
 
 const senders = new Set();
+const receivers = new Set();
 let phoneB = null;
 
 /* PATCH:liveLineState */
@@ -58,7 +59,7 @@ function endLiveLine(reason) {
   if (liveLineState.timer) { clearTimeout(liveLineState.timer); liveLineState.timer = null; }
   const msg = { type: 'live_line_ended', reason };
   broadcastToSenders(msg);
-  if (phoneB) safeSend(phoneB, msg);
+  sendToReceivers(msg);
   console.log('live_line ended:', reason);
 }
 
@@ -117,7 +118,8 @@ function connectionStatus() {
     type: "connection_status",
     senderConnected: senders.size > 0,
     senderCount: senders.size,
-    receiverConnected: Boolean(phoneB && phoneB.readyState === WebSocket.OPEN),
+    receiverConnected: receivers.size > 0,
+    receiverCount: receivers.size,
     totalClients: wss.clients.size
   };
 }
@@ -202,9 +204,10 @@ function notifyHelpRequest() {
 }
 
 function cleanupClient(ws) {
-  const changed = senders.delete(ws) || ws === phoneB;
-  if (ws === phoneB) phoneB = null;
-  if (changed) setTimeout(broadcastStatus, 0);
+  const removedSender = senders.delete(ws);
+  const removedReceiver = receivers.delete(ws);
+  if (ws === phoneB) phoneB = receivers.values().next().value || null;
+  if (removedSender || removedReceiver) setTimeout(broadcastStatus, 0);
 }
 
 function markClientAlive(ws) {
@@ -246,6 +249,18 @@ function broadcastToSenders(data, excludeWs) {
   return delivered;
 }
 
+function sendToReceivers(data, excludeWs) {
+  let delivered = 0;
+  receivers.forEach((receiver) => {
+    if (receiver !== excludeWs && safeSend(receiver, data)) delivered += 1;
+  });
+  return delivered;
+}
+
+function hasReceivers() {
+  return receivers.size > 0;
+}
+
 wss.on("connection", (ws, req) => {
   console.log("Client connected");
   markClientAlive(ws);
@@ -272,9 +287,10 @@ wss.on("connection", (ws, req) => {
       broadcastStatus();
     }
     if (data.type === "register" && data.role === "receiver") {
-      phoneB = replaceClient(phoneB, ws, "receiver");
+      receivers.add(ws);
+      phoneB = ws;
       ws.role = "receiver";
-      console.log("Receiver registered");
+      console.log(`Receiver registered (${receivers.size} total)`);
       broadcastStatus();
     }
     if (data.type === "register" && data.role === "scheduler") {
@@ -283,11 +299,11 @@ wss.on("connection", (ws, req) => {
     if (data.type === "keepalive") {
       return;
     }
-    if (data.type === "audio_message" && phoneB) {
+    if (data.type === "audio_message" && hasReceivers()) {
       const text = data.text || data.transcript || "";
       const audioFiles = saveAudioFiles(data, ws);
       console.log("audio_message -> receiver as voice_message", text ? `(${text.length} chars)` : "(no text)", audioFiles.audio_url || audioFiles.pcm_url || "(no audio url)");
-      safeSend(phoneB, {
+      sendToReceivers({
         type: "voice_message",
         text,
         transcript: text,
@@ -310,7 +326,7 @@ wss.on("connection", (ws, req) => {
     }
     if (data.type === "phrase_message") {
       console.log("phrase_message -> receiver", data.text || "");
-      if (phoneB) safeSend(phoneB, data);
+      sendToReceivers(data);
       safeSend(ws, { type: "phrase_sent", text: data.text });
       broadcastToSenders({
         type: "activity_event",
@@ -322,13 +338,13 @@ wss.on("connection", (ws, req) => {
         }
       });
     }
-    if (data.type === "direct_line_request" && phoneB) {
+    if (data.type === "direct_line_request" && hasReceivers()) {
       console.log("direct_line_request -> receiver");
-      safeSend(phoneB, { type: "direct_line_request" });
+      sendToReceivers({ type: "direct_line_request" });
     }
-    if (data.type === "direct_line_cancel" && phoneB) {
+    if (data.type === "direct_line_cancel" && hasReceivers()) {
       console.log("direct_line_cancel -> receiver");
-      safeSend(phoneB, { type: "direct_line_cancel" });
+      sendToReceivers({ type: "direct_line_cancel" });
     }
     if (data.type === "direct_line_accept" && senders.size) {
       console.log(`direct_line_accept -> ${senders.size} sender(s)`);
@@ -338,9 +354,9 @@ wss.on("connection", (ws, req) => {
       console.log(`direct_line_timeout -> ${senders.size} sender(s)`);
       broadcastToSenders({ type: "direct_line_timeout" });
     }
-    if (data.type === "profile_sync" && phoneB) {
+    if (data.type === "profile_sync" && hasReceivers()) {
       console.log("profile_sync -> receiver");
-      safeSend(phoneB, data);
+      sendToReceivers(data);
     }
     if (data.type === "reply_message" && senders.size) {
       console.log(`reply_message -> ${senders.size} sender(s)`);
@@ -361,9 +377,9 @@ wss.on("connection", (ws, req) => {
       if (senders.size) broadcastToSenders({ type: "help_request" });
       notifyHelpRequest();
     }
-    if (data.type === "sos_acknowledged" && phoneB) {
+    if (data.type === "sos_acknowledged" && hasReceivers()) {
       console.log("sos_acknowledged -> receiver");
-      safeSend(phoneB, { type: "sos_acknowledged" });
+      sendToReceivers({ type: "sos_acknowledged" });
     }
     if (data.type === "lunara_start" && senders.size) {
       console.log(`lunara_start -> ${senders.size} sender(s)`);
@@ -371,22 +387,22 @@ wss.on("connection", (ws, req) => {
     }
     /* PATCH:liveLineHandlers */
     if (data.type === 'live_line_start') {
-      if (phoneB) {
+      if (hasReceivers()) {
         liveLineState.active = true;
         startLiveLineTimer();
-        safeSend(phoneB, { type: 'live_line_start' });
+        sendToReceivers({ type: 'live_line_start' });
         broadcastToSenders({ type: 'live_line_started' });
         console.log('live_line_start -> receiver');
       }
     }
     if (data.type === 'live_audio_chunk') {
       if (!liveLineState.active) return;
-      if (ws.role === 'sender' && phoneB) { safeSend(phoneB, data); }
+      if (ws.role === 'sender' && hasReceivers()) { sendToReceivers(data); }
       else if (ws.role === 'receiver') { broadcastToSenders(data); }
     }
     /* PATCH:liveWarning */
     if (data.type === 'live_line_warning') {
-      if (ws.role === 'sender' && phoneB) safeSend(phoneB, {type:'live_line_warning'});
+      if (ws.role === 'sender') sendToReceivers({type:'live_line_warning'});
     }
     if (data.type === 'live_line_end') {
       endLiveLine(data.reason || 'user');
@@ -403,8 +419,8 @@ wss.on("connection", (ws, req) => {
         mimeType: data.mimeType || 'audio/wav',
       });
     }
-    if (data.type === 'remind_later_ack' && phoneB) {
-      safeSend(phoneB, { type: 'remind_later_ack', minutes: data.minutes });
+    if (data.type === 'remind_later_ack' && hasReceivers()) {
+      sendToReceivers({ type: 'remind_later_ack', minutes: data.minutes });
     }
   });
 
