@@ -1,4 +1,4 @@
-const VERSION = '3.3-push';
+const VERSION = '3.4-push';
 
 self.addEventListener('install', () => self.skipWaiting());
 
@@ -85,9 +85,12 @@ self.addEventListener('notificationclick', (event) => {
   } else if (type === 'help_request') {
     action = 'sos';
     url.searchParams.set('pushAction', 'sos');
+    url.searchParams.set('clearReminder', '1');
   } else {
     url.searchParams.set('pushAction', 'answer');
+    url.searchParams.set('clearReminder', '1');
   }
+  url.searchParams.set('pushTs', Date.now().toString());
 
   event.waitUntil(focusOrOpen(url.href, action));
 });

@@ -823,9 +823,11 @@ function initPushNotifications() {
 }
 
 function applyPushAction(action) {
-  if (action === 'answer') {
+  if (action !== 'remind') {
     cancelReminder();
     hideReminderChip();
+  }
+  if (action === 'answer') {
     answerNotif();
   }
   if (action === 'remind') remindLater(5);
@@ -835,7 +837,15 @@ function applyPushAction(action) {
 function handlePushLaunchAction() {
   const params = new URLSearchParams(location.search);
   const action = params.get('pushAction');
-  if (!action) return;
+  const shouldClearReminder = params.get('clearReminder') === '1' || (action && action !== 'remind');
+  if (shouldClearReminder) {
+    cancelReminder();
+    hideReminderChip();
+  }
+  if (!action) {
+    if (shouldClearReminder) history.replaceState({}, '', location.pathname);
+    return;
+  }
   history.replaceState({}, '', location.pathname);
   setTimeout(() => applyPushAction(action), 600);
 }
