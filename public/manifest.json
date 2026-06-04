@@ -1,22 +1,24 @@
 {
-  "name": "VoiceBridge",
-  "short_name": "VoiceBridge",
+  "name": "VOICE BRIDGE",
+  "short_name": "VOICE BRIDGE",
   "description": "Голосовая связь с близкими",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f1a",
-  "theme_color": "#0f0f1a",
+  "background_color": "#F8F1FF",
+  "theme_color": "#F8F1FF",
   "orientation": "portrait",
   "icons": [
     {
       "src": "icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
