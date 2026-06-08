@@ -1817,6 +1817,17 @@ function acknowledgeSOS() {
   sendSocket({ type: 'sos_acknowledged' });
 }
 
+function clearSosForActiveReply() {
+  if (sosResponsePending) acknowledgeSOS();
+  stopSosSound();
+  stopSosPulse();
+  sosResponsePending = false;
+  document.getElementById('notif-banner')?.classList.remove('sos-alert');
+  document.getElementById('notif-icon')?.classList.remove('sos-blinking');
+  if (llActive) setMiniDeviceState('live-line');
+  else if (directLineMode) setMiniDeviceState('direct-line');
+}
+
 function beginVoiceReplyFromMic() {
   cancelReminder();
   if (!directLineMode) {
@@ -1825,7 +1836,7 @@ function beginVoiceReplyFromMic() {
     document.getElementById('sos-extra').style.display = 'none';
     document.getElementById('notif-icon')?.classList.remove('ringing');
   }
-  stopSosSound();
+  clearSosForActiveReply();
 }
 
 function showSOS() {
@@ -1974,10 +1985,11 @@ function answerNotif() {
 let llActive=false,llTimer=null,llSecs=180,llTimerRunning=false,llStream=null,llProc=null,llCtx=null;
 const dadVoices=[];
 
-function startLiveLine(){closeNotif();sendSocket({type:'live_line_start'});}
+function startLiveLine(){closeNotif();clearSosForActiveReply();sendSocket({type:'live_line_start'});}
 // showRemindMenu removed — remind chips shown directly via withRemind flag
 
 async function onLiveLineStarted(){
+  clearSosForActiveReply();
   llActive=true;llSecs=180;llTimerRunning=false;
   document.getElementById('micBtn')?.classList.add('live-line');
   // live-line класс на mic-outer активирует зелёные волны сразу
