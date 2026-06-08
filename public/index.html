@@ -1605,9 +1605,11 @@ function sendPhrase(text) {
   }
   const sent = sendSocket({ type: 'phrase_message', text });
   if (!sent) {
+    playBell('warning');
     addActivity('Нет связи, фраза не отправлена', '⚠️', 'system');
     return;
   }
+  playBell('sent');
   setMiniDeviceState('phrase', 2800);
   addActivity(text, '💬', 'phrase');
   closeModal();
@@ -2169,13 +2171,17 @@ function getSoundForType(type) {
     talk: 'talk',
     sos: 'sos',
     lunara: 'lunara',
-    incoming: 'incoming'
+    incoming: 'incoming',
+    sent: 'sent',
+    warning: 'warning'
   };
   const fallback = {
     talk: 'bell',
     sos: 'sos',
     lunara: 'lunar',
-    incoming: 'soft'
+    incoming: 'soft',
+    sent: 'sent',
+    warning: 'warning'
   };
   const key = keyMap[type] || 'incoming';
   return localStorage.getItem('vb-sound-' + key) || fallback[key];
@@ -2200,6 +2206,8 @@ function playBell(type) {
       bright: [988, 1174],
       calm: [392, 523],
       lunar: [523, 784, 1175],
+      sent: [784, 1046],
+      warning: [220, 196],
       sos: [660, 660, 660]
     };
     const notes = patterns[sound] || patterns.bell;
