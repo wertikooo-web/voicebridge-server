@@ -48,6 +48,7 @@ app.use(
 const senders = new Set();
 const receivers = new Set();
 let phoneB = null;
+let clientSeq = 0;
 
 /* PATCH:liveLineState */
 const LIVE_LINE_TIMEOUT_MS = 3 * 60 * 1000;
@@ -210,6 +211,23 @@ function cleanupClient(ws) {
   if (removedSender || removedReceiver) setTimeout(broadcastStatus, 0);
 }
 
+function clientRole(ws) {
+  return ws?.role || "unregistered";
+}
+
+function clientLabel(ws) {
+  return `${clientRole(ws)}#${ws?.clientId || "?"}`;
+}
+
+function connectionCounts() {
+  return `senders=${senders.size}, receivers=${receivers.size}, total=${wss.clients.size}`;
+}
+
+function formatCloseReason(reason) {
+  const text = reason && reason.length ? reason.toString() : "";
+  return text ? `, reason=${text}` : "";
+}
+
 function markClientAlive(ws) {
   if (!ws) return;
   ws.isAlive = true;
@@ -232,7 +250,7 @@ function safeSend(ws, data) {
 
   ws.send(JSON.stringify(data), (error) => {
     if (error) {
-      console.log("Send failed, terminating stale connection:", error.message);
+      console.log(`Send failed (${clientLabel(ws)}), terminating connection: ${error.message}`);
       cleanupClient(ws);
       ws.terminate();
     }
@@ -262,10 +280,13 @@ function hasReceivers() {
 }
 
 wss.on("connection", (ws, req) => {
-  console.log("Client connected");
+  ws.clientId = ++clientSeq;
+  ws.role = "unregistered";
   markClientAlive(ws);
   ws.requestHost = req.headers.host;
   ws.requestProto = (req.headers["x-forwarded-proto"] || (req.socket.encrypted ? "https" : "http")).split(",")[0].trim();
+  ws.requestIp = (req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+  console.log(`Client connected (${clientLabel(ws)}, ip=${ws.requestIp || "unknown"}, ${connectionCounts()})`);
 
   ws.on("pong", () => {
     markClientAlive(ws);
@@ -283,18 +304,19 @@ wss.on("connection", (ws, req) => {
     if (data.type === "register" && data.role === "sender") {
       senders.add(ws);
       ws.role = "sender";
-      console.log(`Sender registered (${senders.size} total)`);
+      console.log(`Sender registered (${clientLabel(ws)}, ${connectionCounts()})`);
       broadcastStatus();
     }
     if (data.type === "register" && data.role === "receiver") {
       receivers.add(ws);
       phoneB = ws;
       ws.role = "receiver";
-      console.log(`Receiver registered (${receivers.size} total)`);
+      console.log(`Receiver registered (${clientLabel(ws)}, ${connectionCounts()})`);
       broadcastStatus();
     }
     if (data.type === "register" && data.role === "scheduler") {
-      console.log("Scheduler registered");
+      ws.role = "scheduler";
+      console.log(`Scheduler registered (${clientLabel(ws)}, ${connectionCounts()})`);
     }
     if (data.type === "keepalive") {
       return;
@@ -425,13 +447,14 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("error", (error) => {
-    console.log("WebSocket error:", error.message);
+    console.log(`WebSocket error (${clientLabel(ws)}, ${connectionCounts()}): ${error.message}`);
     cleanupClient(ws);
   });
 
-  ws.on("close", () => {
+  ws.on("close", (code, reason) => {
+    const label = clientLabel(ws);
     cleanupClient(ws);
-    console.log("Client disconnected");
+    console.log(`Client disconnected (${label}, code=${code}${formatCloseReason(reason)}, ${connectionCounts()})`);
   });
 });
 
@@ -440,7 +463,7 @@ const heartbeat = setInterval(() => {
   wss.clients.forEach((ws) => {
     const lastSeen = ws.lastSeen || now;
     if (now - lastSeen > HEARTBEAT_TIMEOUT_MS) {
-      console.log(`Terminating stale client (${ws.role || "unregistered"}, last seen ${Math.round((now - lastSeen) / 1000)}s ago)`);
+      console.log(`Terminating stale client (${clientLabel(ws)}, last seen ${Math.round((now - lastSeen) / 1000)}s ago, ${connectionCounts()})`);
       cleanupClient(ws);
       ws.terminate();
       return;
@@ -450,7 +473,7 @@ const heartbeat = setInterval(() => {
     try {
       ws.ping();
     } catch (error) {
-      console.log("WebSocket ping failed:", error.message);
+      console.log(`WebSocket ping failed (${clientLabel(ws)}): ${error.message}`);
       cleanupClient(ws);
       ws.terminate();
     }
