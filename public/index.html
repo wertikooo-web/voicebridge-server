@@ -10,6 +10,13 @@
   <link rel="apple-touch-icon" href="/apple-touch-icon.png"/>
   <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png"/>
   <title>VoiceBridge</title>
+  <script>
+    try {
+      if (sessionStorage.getItem('vb-app-splash-seen') === '1') {
+        document.documentElement.classList.add('app-splash-seen');
+      }
+    } catch (e) {}
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,6 +47,7 @@
       visibility: hidden;
       pointer-events: none;
     }
+    .app-splash-seen .app-splash { display: none; }
     .app-splash-icon {
       width: 144px;
       height: 144px;
@@ -896,8 +904,16 @@ function handlePushLaunchAction() {
 }
 
 function hideAppSplash() {
+  const splash = document.getElementById('app-splash');
+  let seen = false;
+  try { seen = sessionStorage.getItem('vb-app-splash-seen') === '1'; } catch (e) {}
+  if (seen) {
+    splash?.classList.add('hidden');
+    return;
+  }
   setTimeout(() => {
-    document.getElementById('app-splash')?.classList.add('hidden');
+    splash?.classList.add('hidden');
+    try { sessionStorage.setItem('vb-app-splash-seen', '1'); } catch (e) {}
   }, 1100);
 }
 

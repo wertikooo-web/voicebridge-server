@@ -107,6 +107,66 @@ let editingPhraseId = null;
 const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
 const ws = new WebSocket(protocol + '//' + location.host);
 ws.onopen = () => { ws.send(JSON.stringify({ type: 'register', role: 'sender' })); };
+let phoneAudioCtx = null;
+
+function isNightModeActive() {
+  if (localStorage.getItem('vb-night-enabled') !== 'true') return false;
+  const start = localStorage.getItem('vb-night-start') || '22:00';
+  const end = localStorage.getItem('vb-night-end') || '07:00';
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  const startMins = sh * 60 + sm;
+  const endMins = eh * 60 + em;
+  return startMins <= endMins
+    ? mins >= startMins && mins < endMins
+    : mins >= startMins || mins < endMins;
+}
+
+function getSoundForType(type) {
+  const keyMap = { sent: 'sent', warning: 'warning' };
+  const fallback = { sent: 'sent', warning: 'warning' };
+  const key = keyMap[type] || 'sent';
+  return localStorage.getItem('vb-sound-' + key) || fallback[key];
+}
+
+function playBell(type) {
+  try {
+    if (type !== 'sos' && isNightModeActive()) return;
+    const sound = getSoundForType(type);
+    if (!phoneAudioCtx) phoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (phoneAudioCtx.state === 'suspended') phoneAudioCtx.resume();
+    const ctx = phoneAudioCtx;
+    const patterns = {
+      sent: [784, 1046],
+      warning: [220, 196]
+    };
+    const notes = patterns[sound] || patterns.sent;
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = freq;
+      osc.type = sound === 'warning' ? 'sawtooth' : 'sine';
+      const start = ctx.currentTime + i * 0.12;
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.exponentialRampToValueAtTime(0.06, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.11);
+      osc.start(start);
+      osc.stop(start + 0.13);
+    });
+  } catch(e) {}
+}
+
+function unlockPhoneAudio() {
+  try {
+    if (!phoneAudioCtx) phoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (phoneAudioCtx.state === 'suspended') phoneAudioCtx.resume();
+  } catch(e) {}
+}
+window.addEventListener('pointerdown', unlockPhoneAudio, { once: true });
 
 // Emoji picker
 const grid = document.getElementById('emoji-grid');
@@ -177,7 +237,12 @@ function sendPhrase(id) {
   const phrase = phrases.find(p => p.id === id);
   if (!phrase) return;
   const text = phrase.emoji + ' ' + phrase.text;
+  if (ws.readyState !== WebSocket.OPEN) {
+    playBell('warning');
+    return;
+  }
   ws.send(JSON.stringify({ type: 'phrase_message', text }));
+  playBell('sent');
   // Save to activity log
   const now = new Date();
   const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
