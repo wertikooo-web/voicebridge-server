@@ -592,8 +592,10 @@ window.addEventListener('load', function() {
     <div class="lunara-panel">
       <label>Что сказать или сделать</label>
       <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
-      <label>Тип сообщения</label>
+      <button class="btn-soft" id="lunara-voice-input" type="button" onclick="toggleLunaraVoiceInput()" style="width:100%;margin:-2px 0 12px">🎙️ Сказать голосом</button>
+      <label>Стиль ответа</label>
       <div class="lunara-type-grid">
+        <button class="lunara-type" type="button" data-lunara-type="auto" onclick="setLunaraType('auto')">Авто</button>
         <button class="lunara-type" type="button" data-lunara-type="story" onclick="setLunaraType('story')">История</button>
         <button class="lunara-type" type="button" data-lunara-type="memory" onclick="setLunaraType('memory')">Воспоминание</button>
         <button class="lunara-type" type="button" data-lunara-type="reminder" onclick="setLunaraType('reminder')">Напоминание</button>
@@ -608,7 +610,7 @@ window.addEventListener('load', function() {
       <input type="datetime-local" id="lunara-scheduled-at"/>
       <div class="lunara-actions">
         <button class="btn-soft" type="button" onclick="submitLunara('now')">Сказать сейчас</button>
-        <button class="btn-save" type="button" onclick="submitLunara('scheduled')">Запланировать</button>
+        <button class="btn-save" type="button" onclick="submitLunara('scheduled')">Запланировать позже</button>
       </div>
       <div class="voice-disabled-note" id="lunara-status" style="margin-top:12px">Нажми “Сказать сейчас” — ответ будет сразу сгенерирован голосом и отправлен на устройство.</div>
     </div>
@@ -747,12 +749,73 @@ function showPrivacyNotice(name) {
   if (note) note.classList.add('show');
 }
 
-let lunaraType = 'support';
+
+let lunaraRecognition = null;
+let lunaraListening = false;
+
+function toggleLunaraVoiceInput() {
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const button = document.getElementById('lunara-voice-input');
+  const promptEl = document.getElementById('lunara-prompt');
+  const status = document.getElementById('lunara-status');
+  if (!SpeechRecognition) {
+    alert('Голосовой ввод не поддерживается в этом браузере. Открой через Chrome на Android.');
+    return;
+  }
+  if (lunaraListening && lunaraRecognition) {
+    lunaraRecognition.stop();
+    return;
+  }
+  lunaraRecognition = new SpeechRecognition();
+  lunaraRecognition.lang = 'ru-RU';
+  lunaraRecognition.interimResults = true;
+  lunaraRecognition.continuous = false;
+  let finalText = '';
+  lunaraRecognition.onstart = () => {
+    lunaraListening = true;
+    if (button) button.textContent = '⏹️ Закончить запись';
+    if (status) status.textContent = 'Говорите. Я превращу голос в текст для Lunara.';
+  };
+  lunaraRecognition.onresult = (event) => {
+    let interim = '';
+    finalText = '';
+    for (let i = 0; i < event.results.length; i++) {
+      const part = event.results[i][0]?.transcript || '';
+      if (event.results[i].isFinal) finalText += part;
+      else interim += part;
+    }
+    const text = (finalText || interim).trim();
+    if (text && promptEl) promptEl.value = text;
+  };
+  lunaraRecognition.onerror = (event) => {
+    if (status) status.textContent = 'Голос не распознан: ' + (event.error || 'ошибка микрофона');
+  };
+  lunaraRecognition.onend = () => {
+    lunaraListening = false;
+    if (button) button.textContent = '🎙️ Сказать голосом';
+    if (status) status.textContent = promptEl?.value ? 'Голос распознан. Теперь нажми “Сказать сейчас”.' : 'Голос не распознан. Попробуйте ещё раз.';
+  };
+  lunaraRecognition.start();
+}
+let lunaraType = 'auto';
 function setLunaraType(type) {
-  lunaraType = type || 'support';
+  lunaraType = type || 'auto';
   document.querySelectorAll('.lunara-type').forEach(button => {
     button.classList.toggle('active', button.dataset.lunaraType === lunaraType);
   });
+  const status = document.getElementById('lunara-status');
+  if (!status) return;
+  if (lunaraType === 'memory') {
+    status.textContent = 'Воспоминания пока заглушка. Они заработают после подключения файлов профиля, биографии, писем и семейных материалов.';
+  } else if (lunaraType === 'story') {
+    status.textContent = 'История: Lunara расскажет короткую сказку, рассказ или тёплую историю по твоему тексту.';
+  } else if (lunaraType === 'reminder') {
+    status.textContent = 'Напоминание: Lunara коротко и спокойно напомнит о действии.';
+  } else if (lunaraType === 'support') {
+    status.textContent = 'Поддержка: Lunara скажет тёплую поддерживающую фразу.';
+  } else {
+    status.textContent = 'Авто: Lunara сама поймёт задачу из текста и сразу озвучит ответ на устройстве.';
+  }
 }
 
 async function submitLunara(mode) {
@@ -760,6 +823,11 @@ async function submitLunara(mode) {
   const status = document.getElementById('lunara-status');
   if (!prompt) {
     alert('Введите текст для Lunara AI.');
+    return;
+  }
+  if (lunaraType === 'memory') {
+    if (status) status.textContent = 'Воспоминания пока заглушка. Подключим после файлов профиля, биографии и семейных материалов.';
+    alert('Воспоминания заработают после подключения файлов профиля и семейной биографии.');
     return;
   }
   const payload = {
