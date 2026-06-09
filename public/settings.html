@@ -114,6 +114,9 @@
     .lunara-type.active { border-color: #f59e0b; background: #fffbeb; color: #92400e; box-shadow: 0 8px 18px rgba(245,158,11,0.12); }
     .lunara-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
     .btn-soft { border: 1.5px solid #f59e0b; background: #fff7ed; color: #92400e; border-radius: 14px; padding: 13px 10px; font-size: 14px; font-weight: 800; cursor: pointer; }
+    .lunara-voice-input { width: 100%; margin: -2px 0 12px; border: 1.5px solid #f59e0b; background: #fff7ed; color: #92400e; border-radius: 14px; padding: 13px 10px; font-size: 14px; font-weight: 800; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; -webkit-tap-highlight-color: transparent; transition: background .18s ease, color .18s ease, box-shadow .18s ease, transform .12s ease; }
+    .lunara-voice-input:active { transform: scale(.98); box-shadow: 0 0 0 5px rgba(245,158,11,.14); }
+    .lunara-voice-input.listening { background: linear-gradient(135deg,#f59e0b,#fb923c); color: #fff; border-color: #fb923c; box-shadow: 0 10px 24px rgba(245,158,11,.28), 0 0 0 6px rgba(245,158,11,.14); }
     .field-note { margin: -8px 0 10px; font-size: 11px; line-height: 1.4; color: #6b7280; }
     .inline-save { width: 100%; border: 1.5px solid #bbf7d0; background: #f0fdf4; color: #166534; border-radius: 12px; padding: 11px 12px; font-size: 13px; font-weight: 800; cursor: pointer; margin: -2px 0 12px; }
     .call-mode-list { display: grid; gap: 10px; margin: 12px 0 16px; }
@@ -592,7 +595,7 @@ window.addEventListener('load', function() {
     <div class="lunara-panel">
       <label>Что сказать или сделать</label>
       <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
-      <button class="btn-soft" id="lunara-voice-input" type="button" onclick="toggleLunaraVoiceInput()" style="width:100%;margin:-2px 0 12px">🎙️ Сказать голосом</button>
+      <button class="lunara-voice-input" id="lunara-voice-input" type="button" onclick="toggleLunaraVoiceInput()" oncontextmenu="return false">🎙️ Сказать голосом</button>
       <label>Стиль ответа</label>
       <div class="lunara-type-grid">
         <button class="lunara-type" type="button" data-lunara-type="auto" onclick="setLunaraType('auto')">Авто</button>
@@ -773,7 +776,10 @@ function toggleLunaraVoiceInput() {
   let finalText = '';
   lunaraRecognition.onstart = () => {
     lunaraListening = true;
-    if (button) button.textContent = '⏹️ Закончить запись';
+    if (button) {
+      button.textContent = '⏹️ Закончить запись';
+      button.classList.add('listening');
+    }
     if (status) status.textContent = 'Говорите. Я превращу голос в текст для Lunara.';
   };
   lunaraRecognition.onresult = (event) => {
@@ -788,11 +794,15 @@ function toggleLunaraVoiceInput() {
     if (text && promptEl) promptEl.value = text;
   };
   lunaraRecognition.onerror = (event) => {
+    if (button) button.classList.remove('listening');
     if (status) status.textContent = 'Голос не распознан: ' + (event.error || 'ошибка микрофона');
   };
   lunaraRecognition.onend = () => {
     lunaraListening = false;
-    if (button) button.textContent = '🎙️ Сказать голосом';
+    if (button) {
+      button.textContent = '🎙️ Сказать голосом';
+      button.classList.remove('listening');
+    }
     if (status) status.textContent = promptEl?.value ? 'Голос распознан. Теперь нажми “Сказать сейчас”.' : 'Голос не распознан. Попробуйте ещё раз.';
   };
   lunaraRecognition.start();
