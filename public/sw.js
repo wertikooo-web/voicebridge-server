@@ -1,4 +1,4 @@
-const VERSION = '3.9-push-visible';
+const VERSION = '4.0-lunara-panel-network-first';
 const APP_SHELL_CACHE = 'voicebridge-shell-' + VERSION;
 const APP_SHELL_FILES = [
   '/',
@@ -35,15 +35,33 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  if (!APP_SHELL_FILES.includes(url.pathname) && url.pathname !== '/') return;
+  if (!['document', 'style', 'script', 'image', 'font'].includes(request.destination) && !url.pathname.endsWith('.json')) return;
+
+  const cacheableRequest = new Request(url.origin + url.pathname, request);
+  const isHtml = request.mode === 'navigate' || request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname === '/';
+
+  if (isHtml) {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          if (response && response.ok) {
+            const copy = response.clone();
+            caches.open(APP_SHELL_CACHE).then(cache => cache.put(cacheableRequest, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(cacheableRequest).then(cached => cached || caches.match('/index.html')))
+    );
+    return;
+  }
 
   event.respondWith(
-    caches.match(request).then(cached => {
+    caches.match(cacheableRequest).then(cached => {
       const fresh = fetch(request)
         .then(response => {
           if (response && response.ok) {
             const copy = response.clone();
-            caches.open(APP_SHELL_CACHE).then(cache => cache.put(request, copy));
+            caches.open(APP_SHELL_CACHE).then(cache => cache.put(cacheableRequest, copy));
           }
           return response;
         })

@@ -1612,17 +1612,37 @@ document.addEventListener('DOMContentLoaded', () => {
   loadReminders();
   initDayChips();
   setLunaraType(lunaraType);
-  const initialPanel = sessionStorage.getItem('vb-open-settings-panel') || new URLSearchParams(location.search).get('panel') || location.hash.replace('#', '');
+  openInitialSettingsPanel();
+});
+
+function getInitialSettingsPanel() {
+  const params = new URLSearchParams(location.search);
+  return sessionStorage.getItem('vb-open-settings-panel') || params.get('panel') || params.get('open') || location.hash.replace('#', '');
+}
+
+function openInitialSettingsPanel() {
+  const initialPanel = getInitialSettingsPanel();
   sessionStorage.removeItem('vb-open-settings-panel');
-  if (initialPanel && document.getElementById('p-' + initialPanel)) {
-    setTimeout(() => {
-      open_(initialPanel);
-      if (initialPanel === 'lunaraai') {
-        const prompt = document.getElementById('lunara-prompt');
-        if (prompt) setTimeout(() => prompt.focus(), 120);
-      }
-    }, 50);
-  }
+  if (!initialPanel) return;
+  let tries = 0;
+  const openPanel = () => {
+    const panel = document.getElementById('p-' + initialPanel);
+    if (!panel && tries++ < 12) {
+      setTimeout(openPanel, 80);
+      return;
+    }
+    if (!panel) return;
+    open_(initialPanel);
+    if (initialPanel === 'lunaraai') {
+      const prompt = document.getElementById('lunara-prompt');
+      if (prompt) setTimeout(() => prompt.focus(), 120);
+    }
+  };
+  openPanel();
+}
+
+window.addEventListener('pageshow', () => {
+  if (getInitialSettingsPanel()) openInitialSettingsPanel();
 });
 </script>
 </body>

@@ -1140,7 +1140,7 @@ function clearActiveAlertsForCall() {
 
 function openLunaraAiPanel() {
   sessionStorage.setItem('vb-open-settings-panel', 'lunaraai');
-  window.location.href = '/settings.html?panel=lunaraai#lunaraai';
+  window.location.href = '/settings.html?panel=lunaraai&open=lunaraai&v=' + Date.now() + '#lunaraai';
 }
 
 function closeCallModal() {
