@@ -108,7 +108,10 @@
     .voice-talk-button { width: 118px; height: 118px; border-radius: 50%; margin: 0 auto 18px; border: 0; display: grid; place-items: center; background: radial-gradient(circle at 35% 28%, #a78bfa, #7c5cbf 58%, #5b3fa3); box-shadow: 0 16px 34px rgba(124,92,191,0.28), inset 0 1px 0 rgba(255,255,255,0.28); color: white; font-size: 15px; font-weight: 800; }
     .voice-disabled-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; font-size: 12px; line-height: 1.45; color: #92400e; text-align: center; }
     .lunara-panel { background: linear-gradient(145deg, #fff7ed, #f5f3ff); border: 1px solid #eadcff; border-radius: 18px; padding: 14px; margin-top: 14px; }
-    .lunara-panel textarea { min-height: 104px; }
+    .lunara-prompt-wrap { position: relative; }
+    .lunara-panel textarea { min-height: 104px; padding-right: 46px; resize: vertical; }
+    .lunara-clear-btn { position: absolute; right: 10px; bottom: 12px; width: 34px; height: 34px; border-radius: 12px; border: 1px solid #fee2e2; background: rgba(255,255,255,0.92); color: #dc2626; font-size: 16px; display: grid; place-items: center; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; box-shadow: 0 8px 18px rgba(220,38,38,0.10); }
+    .lunara-clear-btn:active { transform: scale(.94); background: #fee2e2; }
     .lunara-type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 14px; }
     .lunara-type { border: 1.5px solid #e5e7eb; background: white; color: #5b556a; border-radius: 12px; padding: 10px 8px; font-size: 12px; font-weight: 700; cursor: pointer; }
     .lunara-type.active { border-color: #f59e0b; background: #fffbeb; color: #92400e; box-shadow: 0 8px 18px rgba(245,158,11,0.12); }
@@ -599,13 +602,15 @@ window.addEventListener('load', function() {
     <div class="psub">Lunara сразу озвучит ответ на устройстве VoiceBridge</div>
     <div class="lunara-panel">
       <label>Что сказать или сделать</label>
-      <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
+      <div class="lunara-prompt-wrap">
+        <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
+        <button class="lunara-clear-btn" type="button" onclick="clearLunaraPrompt()" aria-label="Очистить текст" title="Очистить">🗑</button>
+      </div>
       <button class="lunara-voice-input" id="lunara-voice-input" type="button" onclick="toggleLunaraVoiceInput()" oncontextmenu="return false">🎙️ Сказать голосом</button>
       <label>Стиль ответа</label>
       <div class="lunara-type-grid">
         <button class="lunara-type" type="button" data-lunara-type="auto" onclick="setLunaraType('auto')">Авто</button>
         <button class="lunara-type" type="button" data-lunara-type="story" onclick="setLunaraType('story')">История</button>
-        <button class="lunara-type" type="button" data-lunara-type="memory" onclick="setLunaraType('memory')">Воспоминание</button>
         <button class="lunara-type" type="button" data-lunara-type="reminder" onclick="setLunaraType('reminder')">Напоминание</button>
         <button class="lunara-type" type="button" data-lunara-type="support" onclick="setLunaraType('support')">Фраза поддержки</button>
       </div>
@@ -813,6 +818,14 @@ function toggleLunaraVoiceInput() {
   lunaraRecognition.start();
 }
 let lunaraType = 'auto';
+function clearLunaraPrompt() {
+  const promptEl = document.getElementById('lunara-prompt');
+  const status = document.getElementById('lunara-status');
+  if (!promptEl) return;
+  promptEl.value = '';
+  promptEl.focus();
+  if (status) status.textContent = 'Поле очищено. Можно написать или сказать новый запрос.';
+}
 function setLunaraType(type) {
   lunaraType = type || 'auto';
   document.querySelectorAll('.lunara-type').forEach(button => {
@@ -820,9 +833,7 @@ function setLunaraType(type) {
   });
   const status = document.getElementById('lunara-status');
   if (!status) return;
-  if (lunaraType === 'memory') {
-    status.textContent = 'Воспоминания пока заглушка. Они заработают после подключения файлов профиля, биографии, писем и семейных материалов.';
-  } else if (lunaraType === 'story') {
+  if (lunaraType === 'story') {
     status.textContent = 'История: Lunara расскажет короткую сказку, рассказ или тёплую историю по твоему тексту.';
   } else if (lunaraType === 'reminder') {
     status.textContent = 'Напоминание: Lunara коротко и спокойно напомнит о действии.';
@@ -838,11 +849,6 @@ async function submitLunara(mode) {
   const status = document.getElementById('lunara-status');
   if (!prompt) {
     alert('Введите текст для Lunara AI.');
-    return;
-  }
-  if (lunaraType === 'memory') {
-    if (status) status.textContent = 'Воспоминания пока заглушка. Подключим после файлов профиля, биографии и семейных материалов.';
-    alert('Воспоминания заработают после подключения файлов профиля и семейной биографии.');
     return;
   }
   const payload = {
