@@ -17,6 +17,10 @@ const AUDIO_DIR = path.join(__dirname, "public", "audio");
 const VAPID_PUBLIC_KEY = process.env.VAPID_PUBLIC_KEY || "";
 const VAPID_PRIVATE_KEY = process.env.VAPID_PRIVATE_KEY || "";
 const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:support@voicebridge.local";
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY || "";
+const LUNARA_MODEL = process.env.LUNARA_MODEL || "gpt-4o-mini";
+const LUNARA_TTS_MODEL = process.env.LUNARA_TTS_MODEL || "gpt-4o-mini-tts";
+const LUNARA_TTS_VOICE = process.env.LUNARA_TTS_VOICE || "alloy";
 const pushSubscriptions = new Map();
 
 fs.mkdirSync(AUDIO_DIR, { recursive: true });
@@ -114,6 +118,82 @@ function saveAudioFiles(data, ws) {
   return result;
 }
 
+function wavToPcm16(wavBuffer) {
+  if (!Buffer.isBuffer(wavBuffer) || wavBuffer.length < 44) return null;
+  const riff = wavBuffer.toString("ascii", 0, 4);
+  const wave = wavBuffer.toString("ascii", 8, 12);
+  if (riff !== "RIFF" || wave !== "WAVE") return null;
+  let offset = 12;
+  while (offset + 8 <= wavBuffer.length) {
+    const id = wavBuffer.toString("ascii", offset, offset + 4);
+    const size = wavBuffer.readUInt32LE(offset + 4);
+    const dataStart = offset + 8;
+    if (id === "data") return wavBuffer.subarray(dataStart, dataStart + size);
+    offset = dataStart + size + (size % 2);
+  }
+  return null;
+}
+
+function lunaraSystemPrompt(type) {
+  const typeHint = {
+    story: "короткая теплая история",
+    memory: "мягкое воспоминание",
+    reminder: "бережное напоминание",
+    support: "короткая фраза поддержки"
+  }[type] || "теплое сообщение";
+  return [
+    "Ты Lunara, спокойный домашний AI-помощник VoiceBridge для пожилого человека.",
+    "Отвечай сразу готовой фразой для озвучивания, без markdown, без списков, без объяснений.",
+    "Язык ответа выбирай по языку запроса: русский или румынский.",
+    "Тон: теплый, уважительный, простой, не детский.",
+    `Формат: ${typeHint}.`,
+    "Длина: 1-3 коротких предложения, до 35 слов."
+  ].join(" ");
+}
+
+async function generateLunaraText(prompt, type) {
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: LUNARA_MODEL,
+      input: [
+        { role: "system", content: lunaraSystemPrompt(type) },
+        { role: "user", content: prompt }
+      ],
+      max_output_tokens: 180
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI text failed ${response.status}: ${await response.text()}`);
+  const data = await response.json();
+  const text = data.output_text || (data.output || [])
+    .flatMap(item => item.content || [])
+    .map(part => part.text || "")
+    .join(" ")
+    .trim();
+  return text || "Я рядом. Всё хорошо, давайте спокойно продолжим.";
+}
+
+async function generateLunaraWav(text) {
+  const response = await fetch("https://api.openai.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: LUNARA_TTS_MODEL,
+      voice: LUNARA_TTS_VOICE,
+      input: text,
+      response_format: "wav"
+    })
+  });
+  if (!response.ok) throw new Error(`OpenAI speech failed ${response.status}: ${await response.text()}`);
+  return Buffer.from(await response.arrayBuffer());
+}
 function connectionStatus() {
   return {
     type: "connection_status",
@@ -132,6 +212,52 @@ function broadcastStatus() {
   });
 }
 
+
+app.post("/api/lunara/speak", async (req, res) => {
+  try {
+    if (!OPENAI_API_KEY) return res.status(503).json({ ok: false, error: "OPENAI_API_KEY is not configured" });
+    const prompt = String(req.body?.prompt || "").trim();
+    if (!prompt) return res.status(400).json({ ok: false, error: "Prompt is required" });
+    if (req.body?.mode === "scheduled") {
+      return res.status(202).json({ ok: true, scheduled: true, message: "Scheduling is not connected yet" });
+    }
+
+    const type = String(req.body?.type || "support");
+    const answer = await generateLunaraText(prompt, type);
+    const wav = await generateLunaraWav(answer);
+    const pcm = wavToPcm16(wav);
+    const messageId = `lunara-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+    const wavName = `${messageId}.wav`;
+    const pcmName = `${messageId}.pcm`;
+    fs.writeFileSync(path.join(AUDIO_DIR, wavName), wav);
+    if (pcm) fs.writeFileSync(path.join(AUDIO_DIR, pcmName), pcm);
+
+    const baseUrl = process.env.PUBLIC_BASE_URL ? process.env.PUBLIC_BASE_URL.replace(/\/$/, "") : `${req.protocol}://${req.get("host")}`;
+    const payload = {
+      type: "voice_message",
+      source: "lunara",
+      originalType: "lunara_speak",
+      text: answer,
+      transcript: answer,
+      message_id: messageId,
+      audio_url: `${baseUrl}/audio/${wavName}`,
+      ...(pcm ? { pcm_url: `${baseUrl}/audio/${pcmName}` } : {}),
+      mimeType: "audio/wav",
+      format: "pcm_s16le",
+      sampleRate: 24000,
+      channels: 1,
+      bitsPerSample: 16,
+      hasAudio: true
+    };
+    const delivered = sendToReceivers(payload);
+    broadcastToSenders({ type: "lunara_start", duration: null });
+    console.log(`lunara_speak -> receivers=${delivered}`, answer);
+    res.json({ ok: true, delivered, message_id: messageId, text: answer, audio_url: payload.audio_url, pcm_url: payload.pcm_url || null });
+  } catch (error) {
+    console.log("lunara_speak failed:", error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
 app.get("/api/status", (req, res) => {
   res.json(connectionStatus());
 });

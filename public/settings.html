@@ -588,7 +588,7 @@ window.addEventListener('load', function() {
   <div class="panel-inner">
     <div class="handle"></div>
     <div class="ptitle">✨ Lunara AI</div>
-    <div class="psub">Опция подключения к AI будет в следующих версиях</div>
+    <div class="psub">Lunara сразу озвучит ответ на устройстве VoiceBridge</div>
     <div class="lunara-panel">
       <label>Что сказать или сделать</label>
       <textarea id="lunara-prompt" placeholder="Например: расскажи папе короткую тёплую историю или напомни выпить чай..."></textarea>
@@ -610,7 +610,7 @@ window.addEventListener('load', function() {
         <button class="btn-soft" type="button" onclick="submitLunara('now')">Сказать сейчас</button>
         <button class="btn-save" type="button" onclick="submitLunara('scheduled')">Запланировать</button>
       </div>
-      <div class="voice-disabled-note" style="margin-top:12px">Пока это макет: запрос сохраняется в консоль, реальный POST /api/lunara/speak подключим позже.</div>
+      <div class="voice-disabled-note" id="lunara-status" style="margin-top:12px">Нажми “Сказать сейчас” — ответ будет сразу сгенерирован голосом и отправлен на устройство.</div>
     </div>
   </div>
 </div>
@@ -755,8 +755,9 @@ function setLunaraType(type) {
   });
 }
 
-function submitLunara(mode) {
+async function submitLunara(mode) {
   const prompt = document.getElementById('lunara-prompt').value.trim();
+  const status = document.getElementById('lunara-status');
   if (!prompt) {
     alert('Введите текст для Lunara AI.');
     return;
@@ -769,8 +770,20 @@ function submitLunara(mode) {
     voice: document.getElementById('lunara-voice').value,
     type: lunaraType
   };
-  console.log('POST /api/lunara/speak', payload);
-  alert('Lunara AI будет доступна в следующих версиях. Макет запроса сохранён в консоль.');
+  if (status) status.textContent = mode === 'scheduled' ? 'Планирование пока не подключено...' : 'Lunara думает и готовит голос...';
+  try {
+    const response = await fetch('/api/lunara/speak', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить запрос Lunara');
+    if (status) status.textContent = data.scheduled ? 'Запланировано. Реальное расписание подключим позже.' : 'Голос Lunara отправлен на устройство.';
+  } catch (error) {
+    if (status) status.textContent = 'Ошибка: ' + error.message;
+    alert('Lunara пока не ответила: ' + error.message);
+  }
 }
 
 const SETTINGS_PROFILE_SYNC_KEYS = [
