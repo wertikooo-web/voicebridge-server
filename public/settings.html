@@ -207,6 +207,11 @@ window.addEventListener('load', function() {
       <div class="info"><div class="title">Настройка вызова</div><div class="sub" id="sub-callmode">С подтверждением</div></div>
       <span class="arrow">›</span>
     </div>
+    <div class="row" onclick="window.location.href='/schedule.html'">
+      <div class="icon" style="background:#f5f3ff">🕐</div>
+      <div class="info"><div class="title">Расписание</div><div class="sub">Автоматические фразы по времени</div></div>
+      <span class="arrow">›</span>
+    </div>
     <div class="row" onclick="open_('nightmode')">
       <div class="icon" style="background:#e0f2fe">🌙</div>
       <div class="info"><div class="title">Ночной режим</div><div class="sub" id="sub-night">Выключен</div></div>
@@ -1498,6 +1503,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadReminders();
   initDayChips();
   setLunaraType(lunaraType);
+  const initialPanel = new URLSearchParams(location.search).get('panel');
+  if (initialPanel && document.getElementById('p-' + initialPanel)) open_(initialPanel);
 });
 </script>
 </body>
