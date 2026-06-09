@@ -197,6 +197,13 @@
     localStorage.setItem('vb-schedules', JSON.stringify(schedules));
   }
 
+  function scheduleSubline(s) {
+    if (s.onceAt) {
+      const d = new Date(s.onceAt);
+      return 'Один раз: ' + d.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + (s.source === 'lunara' ? ' · Lunara AI' : '');
+    }
+    return s.days.map(d => DAY_NAMES[d]).join(', ');
+  }
   function render() {
     const list = document.getElementById('schedule-list');
     if (!schedules.length) {
@@ -209,7 +216,7 @@
         <div class="item-time">${s.time}</div>
         <div class="item-info">
           <div class="item-phrase">${s.phrase}</div>
-          <div class="item-days">${s.days.map(d => DAY_NAMES[d]).join(', ')}</div>
+          <div class="item-days">${scheduleSubline(s)}</div>
         </div>
         <label class="item-toggle">
           <input type="checkbox" ${s.active ? 'checked' : ''} onchange="toggleSchedule(${s.id})"/>
@@ -230,6 +237,11 @@
     let minDiff = Infinity;
 
     schedules.filter(s => s.active).forEach(s => {
+      if (s.onceAt) {
+        const diff = Math.ceil((new Date(s.onceAt).getTime() - now.getTime()) / 60000);
+        if (diff >= 0 && diff < minDiff) { minDiff = diff; next = s; }
+        return;
+      }
       const [h, m] = s.time.split(':').map(Number);
       const sMins = h * 60 + m;
       if (s.days.includes(todayDay)) {
@@ -291,15 +303,16 @@
       const timeStr = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
       const day = now.getDay();
 
-      schedules.filter(s => s.active && s.time === timeStr && s.days.includes(day)).forEach(s => {
+      schedules.filter(s => s.active && ((s.onceAt && now.getTime() >= new Date(s.onceAt).getTime()) || (!s.onceAt && s.time === timeStr && s.days.includes(day)))).forEach(s => {
         if (connected && !wasSentThisMinute(s.id)) {
           ws.send(JSON.stringify({ type: 'phrase_message', text: s.phrase }));
           console.log('Sent:', s.phrase);
+          if (s.onceAt) { s.active = false; s.sentAt = now.toISOString(); save(); render(); }
           // Save to shared log
-          const now = new Date();
-          const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+          const logNow = new Date();
+          const time = logNow.getHours().toString().padStart(2,'0') + ':' + logNow.getMinutes().toString().padStart(2,'0');
           const log = JSON.parse(localStorage.getItem('vb-activity') || '[]');
-          log.unshift({ msg: s.phrase, icon: '⏰', time, type: 'phrase' });
+          log.unshift({ msg: s.phrase, icon: s.source === 'lunara' ? '✨' : '⏰', time, type: s.source === 'lunara' ? 'lunara' : 'phrase', name: s.source === 'lunara' ? 'Lunara' : 'Ты' });
           if (log.length > 20) log.pop();
           localStorage.setItem('vb-activity', JSON.stringify(log));
         }

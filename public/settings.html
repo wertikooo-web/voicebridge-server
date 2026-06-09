@@ -615,7 +615,7 @@ window.addEventListener('load', function() {
         <button class="lunara-type" type="button" data-lunara-type="support" onclick="setLunaraType('support')">Фраза поддержки</button>
       </div>
       <label>Голос</label>
-      <select id="lunara-voice">
+      <select id="lunara-voice" onchange="handleLunaraVoiceChange(this)">
         <option value="lunara">Lunara</option>
         <option value="family_member">Голос близкого</option>
       </select>
@@ -844,6 +844,50 @@ function setLunaraType(type) {
   }
 }
 
+function handleLunaraVoiceChange(select) {
+  const status = document.getElementById('lunara-status');
+  if (select.value !== 'family_member') return;
+  select.value = 'lunara';
+  const text = 'Голос близкого доступен только в версии Pro. Сейчас активен голос Lunara.';
+  if (status) status.textContent = text;
+  alert(text);
+}
+
+function scheduleLunaraPrompt(payload) {
+  const status = document.getElementById('lunara-status');
+  const scheduledAt = payload.scheduledAt;
+  if (!scheduledAt) {
+    alert('Выбери дату и время для отправки.');
+    if (status) status.textContent = 'Выбери дату и время для запланированной отправки.';
+    return;
+  }
+  const date = new Date(scheduledAt);
+  if (Number.isNaN(date.getTime())) {
+    alert('Дата или время указаны неправильно.');
+    if (status) status.textContent = 'Дата или время указаны неправильно.';
+    return;
+  }
+  if (date.getTime() <= Date.now() + 30000) {
+    alert('Выбери время хотя бы на минуту вперёд.');
+    if (status) status.textContent = 'Выбери время хотя бы на минуту вперёд.';
+    return;
+  }
+  const schedules = JSON.parse(localStorage.getItem('vb-schedules') || '[]');
+  const time = date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+  schedules.push({
+    id: Date.now(),
+    time,
+    phrase: payload.prompt,
+    days: [date.getDay()],
+    active: true,
+    onceAt: date.toISOString(),
+    source: 'lunara',
+    lunaraType: payload.type || 'auto'
+  });
+  localStorage.setItem('vb-schedules', JSON.stringify(schedules));
+  if (status) status.textContent = 'Запланировано: Lunara отправит фразу ' + date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '.';
+  alert('Запланировано. Задача добавлена в Расписание.');
+}
 async function submitLunara(mode) {
   const prompt = document.getElementById('lunara-prompt').value.trim();
   const status = document.getElementById('lunara-status');
@@ -859,7 +903,11 @@ async function submitLunara(mode) {
     voice: document.getElementById('lunara-voice').value,
     type: lunaraType
   };
-  if (status) status.textContent = mode === 'scheduled' ? 'Планирование пока не подключено...' : 'Lunara думает и готовит голос...';
+  if (mode === 'scheduled') {
+    scheduleLunaraPrompt(payload);
+    return;
+  }
+  if (status) status.textContent = 'Lunara думает и готовит голос...';
   try {
     const response = await fetch('/api/lunara/speak', {
       method: 'POST',
