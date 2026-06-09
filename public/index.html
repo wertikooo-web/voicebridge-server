@@ -718,7 +718,7 @@
           onmouseup="this.style.transform='scale(1)'"
           ontouchstart="this.style.transform='scale(.93)'"
           ontouchend="this.style.transform='scale(1)'"
-          title="LIVE — прямая связь">📞</button>
+          title="LIVE — Live Line">📞</button>
         <span style="font-size:9px;font-weight:800;color:#16a34a;letter-spacing:.06em;text-transform:uppercase">LIVE</span>
       </div>
       <button class="notif-close" onclick="closeNotif()">✕</button>
@@ -808,7 +808,7 @@
           style="border-color:#22c55e;background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
         <span class="call-choice-icon" style="background:#dcfce7;color:#16a34a">📞</span>
         <span>
-          <span class="call-choice-title" style="color:#16a34a">LIVE — прямая связь</span>
+          <span class="call-choice-title" style="color:#16a34a">LIVE — Live Line</span>
           <span class="call-choice-sub">Двусторонний канал VoiceBridge. Папа услышит сразу.</span>
         </span>
       </button>
@@ -1145,9 +1145,9 @@ function closeCallModal() {
 function startDirectLine() {
   closeCallModal();
   clearActiveAlertsForCall();
-  showNotif('Прямая связь', 'Нажми CALL, затем держи зелёную кнопку и говори', false, { actionText: 'CALL' });
+  showNotif('Live Line', 'Нажми CALL, затем держи зелёную кнопку и говори', false, { actionText: 'CALL' });
   setMiniDeviceState('talk', 2600);
-  addActivity('Открыта прямая связь', '🎙️', 'system');
+  addActivity('Открыта Live Line', '🎙️', 'system');
 }
 
 function startPhoneCall() {
@@ -1299,14 +1299,14 @@ async function handleSocketMessage(event) {
   if (data.type === 'direct_line_accept') {
     directLineAccepted = true;
     setDirectLineMode(true, { notify: false });
-    showNotif('Прямая связь', 'Папа подключился. Держи зелёную кнопку - говори.', false, { actionText: 'OFF' });
+    showNotif('Live Line', 'Папа подключился. Держи зелёную кнопку - говори.', false, { actionText: 'OFF' });
     document.querySelector('.notif-action')?.classList.add('direct-line-off');
-    addActivity('Папа подключился к прямой связи', '☎', 'system');
+    addActivity('Папа подключился к Live Line', '☎', 'system');
   }
   if (data.type === 'direct_line_timeout') {
     setDirectLineMode(false, { notify: false });
     document.getElementById('notif-banner')?.classList.add('hidden');
-    addActivity('Папа не ответил на прямую связь', '☎', 'system');
+    addActivity('Папа не ответил на Live Line', '☎', 'system');
   }
 }
 
@@ -1465,7 +1465,7 @@ async function startRec() {
     tapRecordingMode = false;
     setMicSending(false);
     micBtn.classList.remove('recording');
-    document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Direct line' : 'Удержи';
+    document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
     alert('Нет доступа к микрофону');
   }
 }
@@ -1501,7 +1501,7 @@ async function cancelRec() {
   recordingStartedAt = 0;
   setMicSending(false);
   micBtn.classList.remove('recording');
-  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Direct line' : 'Удержи';
+  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
 }
 
 async function finishPcmRecording(transcriptPromise) {
@@ -1550,7 +1550,7 @@ async function finishPcmRecording(transcriptPromise) {
   recordingStartedAt = 0;
   setMicSending(false);
   micBtn.classList.remove('recording');
-  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Direct line' : 'Удержи';
+  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
 }
 
 function downsampleBuffer(buffer, inputRate, outputRate) {
@@ -1962,7 +1962,7 @@ function setDirectLineMode(enabled, options = {}) {
   const label = document.getElementById('mic-label');
   btn?.classList.toggle('direct-line', directLineMode);
   micOuter?.classList.toggle('direct-line', directLineMode);
-  if (label && !isRecording) label.textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Direct line' : 'Удержи';
+  if (label && !isRecording) label.textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
   if (directLineMode) setMiniDeviceState('direct-line');
   else if (!sosResponsePending) setMiniDeviceState('idle');
   if (wasEnabled && !directLineMode && options.notify !== false) {
@@ -1972,7 +1972,7 @@ function setDirectLineMode(enabled, options = {}) {
 function answerNotif() {
   cancelReminder();
   hideReminderChip();
-  if (document.getElementById('notif-title')?.textContent === 'Прямая связь') {
+  if (document.getElementById('notif-title')?.textContent === 'Live Line') {
     if (directLineMode) {
       setDirectLineMode(false);
       document.getElementById('notif-banner').classList.add('hidden');

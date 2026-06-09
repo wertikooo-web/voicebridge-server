@@ -1614,7 +1614,13 @@ document.addEventListener('DOMContentLoaded', () => {
   setLunaraType(lunaraType);
   const initialPanel = new URLSearchParams(location.search).get('panel') || location.hash.replace('#', '');
   if (initialPanel && document.getElementById('p-' + initialPanel)) {
-    setTimeout(() => open_(initialPanel), 50);
+    setTimeout(() => {
+      open_(initialPanel);
+      if (initialPanel === 'lunaraai') {
+        const prompt = document.getElementById('lunara-prompt');
+        if (prompt) setTimeout(() => prompt.focus(), 120);
+      }
+    }, 50);
   }
 });
 </script>

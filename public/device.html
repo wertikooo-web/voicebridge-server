@@ -338,7 +338,7 @@
     }
     .floating-card.blue { --glow: rgba(47,140,255,0.38); left: 18%; top: 7%; background: linear-gradient(135deg, rgba(30,92,174,0.92), rgba(19,63,123,0.78)); }
     .floating-card.green { --glow: rgba(53,212,131,0.32); left: 20%; top: 24%; background: linear-gradient(135deg, rgba(25,119,78,0.88), rgba(18,85,61,0.76)); }
-    .floating-card.delivered { --glow: rgba(66,230,108,0.32); right: 20%; top: 25%; background: linear-gradient(135deg, rgba(34,139,63,0.88), rgba(20,88,46,0.76)); }
+    .floating-card.delivered { --glow: rgba(47,140,255,0.32); right: 20%; top: 25%; background: linear-gradient(135deg, rgba(28,92,176,0.88), rgba(20,62,120,0.76)); }
     .floating-card.red { --glow: rgba(255,59,48,0.35); right: 28%; top: 21%; background: linear-gradient(135deg, rgba(144,37,31,0.9), rgba(90,25,23,0.78)); }
     .floating-card.orange { --glow: rgba(245,158,11,0.38); right: 24%; top: 18%; background: linear-gradient(135deg, rgba(180,83,9,0.92), rgba(120,53,15,0.8)); border-color: rgba(251,191,36,0.34); }
     .floating-card.violet { --glow: rgba(185,140,255,0.46); left: 58%; top: 15%; background: linear-gradient(135deg, rgba(124,58,237,0.94), rgba(76,29,149,0.86)); border-color: rgba(216,180,254,0.42); }
@@ -417,6 +417,22 @@
       box-shadow: 0 0 52px currentColor, inset 0 0 34px rgba(255,255,255,0.14);
     }
     .pad strong { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; background: currentColor; color: white; box-shadow: 0 0 22px currentColor; }
+    .device-control-hints {
+      bottom: 18px;
+      gap: 10px;
+      pointer-events: none;
+      color: rgba(255,255,255,0.70);
+      font-size: 12px;
+      letter-spacing: 0;
+      text-shadow: 0 2px 14px rgba(0,0,0,0.55);
+    }
+    .device-control-hints span {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(8,15,24,0.48);
+      border: 1px solid rgba(255,255,255,0.10);
+      backdrop-filter: blur(10px);
+    }
     .gesture-drop {
       position: fixed;
       z-index: 20;
@@ -638,10 +654,10 @@
         <button class="bracelet-sos" id="bracelet-sos" type="button">SOS</button>
       </div>
     </div>
-    <div class="pads">
-      <button class="pad" data-device-action="wants_to_talk"><strong>☎</strong><span>Хочу<br/>поговорить</span></button>
-      <button class="pad red" data-device-action="help_request"><strong>SOS</strong><span>Нужна<br/>помощь</span></button>
-      <button class="pad violet" data-device-action="lunara_start"><strong>✦</strong><span>Lunara</span></button>
+    <div class="pads device-control-hints" aria-hidden="true">
+      <span>Верхняя кнопка — запрос</span>
+      <span>3 стука — Lunara</span>
+      <span>Ладонь 5 сек — SOS</span>
     </div>
   </main>
 
@@ -1017,13 +1033,13 @@
       }
       if (data.type === 'direct_line_request') {
         window.voiceBridge3D?.handleDeviceAction('direct_line_request');
-        showFloatingCard('green', 'Прямая<br/>связь', currentTime(), 'Коснитесь устройства, чтобы ответить');
-        log('Запрос прямой связи');
+        showFloatingCard('green', 'Live<br/>Line', currentTime(), 'Коснитесь устройства, чтобы ответить');
+        log('Запрос Live Line');
         return;
       }
       if (data.type === 'direct_line_cancel') {
         window.voiceBridge3D?.handleDeviceAction('direct_line_cancel');
-        log('Прямая связь отменена');
+        log('Live Line отменена');
         return;
       }
       if (data.type === 'audio_message' || data.type === 'reply_message' || data.type === 'voice_message') {
@@ -1118,11 +1134,11 @@
     const colors = {
       idle: 0xffdca8,
       offline: 0x94a3b8,
-      delivered: 0x42e66c,
-      message_delivered: 0x42e66c,
+      delivered: 0x2f8cff,
+      message_delivered: 0x2f8cff,
       voice: 0x2f8cff,
       voice_message: 0x2f8cff,
-      phrase_message: 0x35d483,
+      phrase_message: 0x2f8cff,
       sos_pending: 0xf59e0b,
       help_request: 0xff3b30,
       wants_to_talk: 0x67d7ff,
@@ -1137,11 +1153,11 @@
     const domeColors = {
       idle: 0xfff4e5,
       offline: 0xd4d8df,
-      delivered: 0xdfffe7,
-      message_delivered: 0xdfffe7,
+      delivered: 0xdbeaff,
+      message_delivered: 0xdbeaff,
       voice: 0xdbeaff,
       voice_message: 0x8fc4ff,
-      phrase_message: 0x89f2b1,
+      phrase_message: 0x8fc4ff,
       sos_pending: 0xffe3b0,
       help_request: 0xffd9d6,
       wants_to_talk: 0xd7f5ff,
@@ -1325,48 +1341,66 @@
       return texture;
     }
 
-    const physicalButtons = [
-      { action: 'wants_to_talk', label: '\u260E', color: colors.wants_to_talk, angle: -Math.PI / 5 },
-      { action: 'help_request', label: 'SOS', color: colors.help_request, angle: 0 },
-      { action: 'lunara_start', label: '\u2661', color: colors.lunara_start, angle: Math.PI / 5 }
-    ].map(item => {
+    const talkButtonGroup = new THREE.Group();
+    talkButtonGroup.position.set(0, 2.92, 0.02);
+    const talkButtonBase = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.48, 0.54, 0.12, 96),
+      new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.34, metalness: 0.03, emissive: colors.wants_to_talk, emissiveIntensity: 0.045 })
+    );
+    talkButtonGroup.add(talkButtonBase);
+    const talkButtonGlow = new THREE.Mesh(
+      new THREE.TorusGeometry(0.53, 0.018, 16, 110),
+      new THREE.MeshBasicMaterial({ color: colors.wants_to_talk, transparent: true, opacity: 0.36, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    talkButtonGlow.rotation.x = Math.PI / 2;
+    talkButtonGlow.position.y = 0.066;
+    talkButtonGroup.add(talkButtonGlow);
+    const talkButtonIcon = new THREE.Mesh(
+      new THREE.CircleGeometry(0.34, 72),
+      new THREE.MeshBasicMaterial({ map: makeButtonIconTexture('\u260E', colors.wants_to_talk), transparent: true, opacity: 0.92, depthWrite: false })
+    );
+    talkButtonIcon.rotation.x = -Math.PI / 2;
+    talkButtonIcon.position.y = 0.072;
+    talkButtonGroup.add(talkButtonIcon);
+    const talkButtonHit = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.58, 0.58, 0.18, 64),
+      new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
+    );
+    talkButtonHit.userData.deviceAction = 'talk_button_press';
+    talkButtonHit.userData.color = colors.wants_to_talk;
+    talkButtonHit.userData.buttonRoot = talkButtonGroup;
+    talkButtonGroup.userData.edge = talkButtonGlow;
+    talkButtonGroup.userData.rim = talkButtonBase;
+    talkButtonGroup.add(talkButtonHit);
+    device.add(talkButtonGroup);
+
+    function createFacetPhysicalButton(item) {
       const group = new THREE.Group();
       placeOnBaseFacet(group, item.angle, 0.34, 2.365, -0.09);
-
       const recess = new THREE.Mesh(
         new THREE.CircleGeometry(0.255, 72),
         new THREE.MeshStandardMaterial({ color: 0x060606, roughness: 0.9, metalness: 0.02 })
       );
       recess.position.z = -0.018;
       group.add(recess);
-
       const rim = new THREE.Mesh(
         new THREE.CircleGeometry(0.212, 72),
-        new THREE.MeshStandardMaterial({
-          color: 0x171615,
-          roughness: 0.72,
-          metalness: 0.12,
-          emissive: item.color,
-          emissiveIntensity: 0.025
-        })
+        new THREE.MeshStandardMaterial({ color: 0x171615, roughness: 0.72, metalness: 0.12, emissive: item.color, emissiveIntensity: 0.025 })
       );
       rim.position.z = -0.004;
       group.add(rim);
-
       const edge = new THREE.Mesh(
         new THREE.RingGeometry(0.215, 0.232, 72),
         new THREE.MeshBasicMaterial({ color: item.color, transparent: true, opacity: 0.42, blending: THREE.AdditiveBlending, depthWrite: false })
       );
       edge.position.z = 0.002;
       group.add(edge);
-
       const icon = new THREE.Mesh(
         new THREE.PlaneGeometry(0.25, 0.19),
         new THREE.MeshBasicMaterial({ map: makeButtonIconTexture(item.label, item.color), transparent: true, opacity: 0.88, depthWrite: false })
       );
       icon.position.z = 0.009;
       group.add(icon);
-
       const hit = new THREE.Mesh(
         new THREE.CircleGeometry(0.27, 40),
         new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
@@ -1375,14 +1409,19 @@
       hit.userData.deviceAction = item.action;
       hit.userData.color = item.color;
       hit.userData.buttonRoot = group;
-      hit.userData.birthScale = 1;
       group.add(hit);
-
       group.userData.edge = edge;
       group.userData.rim = rim;
       device.add(group);
       return hit;
-    });
+    }
+
+    const facetPhysicalButtons = [
+      { action: 'wants_to_talk', label: '\u260E', color: colors.wants_to_talk, angle: -Math.PI / 5 },
+      { action: 'help_request', label: 'SOS', color: colors.help_request, angle: 0 },
+      { action: 'lunara_start', label: '\u2726', color: colors.lunara_start, angle: Math.PI / 5 }
+    ].map(createFacetPhysicalButton);
+    const physicalButtons = [talkButtonHit, ...facetPhysicalButtons];
 
     const ringMaterial = new THREE.MeshBasicMaterial({ color: colors.delivered, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending });
     const baseRing = new THREE.Mesh(new THREE.TorusGeometry(2.30, 0.04, 18, 160), ringMaterial);
@@ -1490,9 +1529,31 @@
     let talkConfirmTimer = null;
     let directLineWaiting = false;
     let directLineTimers = [];
+    let deviceMode = 'IDLE';
+    let deviceModeTimer = null;
     const SOS_HOLD_MS = 5000;
+    const SOS_ARMING_DELAY_MS = 2000;
     let lastTouchPoint = new THREE.Vector3(0, 1.92, 1.6);
     let lastTouchQuaternion = new THREE.Quaternion();
+    function setDeviceMode(mode, duration = 0) {
+      deviceMode = mode;
+      clearTimeout(deviceModeTimer);
+      if (duration > 0) {
+        deviceModeTimer = setTimeout(() => {
+          if (deviceMode === mode) deviceMode = 'IDLE';
+        }, duration);
+      }
+    }
+
+    function canStartDeviceScenario(nextMode) {
+      if (deviceMode === 'IDLE') return true;
+      if (deviceMode === 'SOS_ARMING' && nextMode === 'SOS_SENT') return true;
+      return false;
+    }
+
+    function finishDeviceScenario(mode) {
+      if (!mode || deviceMode === mode) setDeviceMode('IDLE');
+    }
 
     function resize() {
       const rect = root.getBoundingClientRect();
@@ -1542,13 +1603,12 @@
     }
 
     function runPhysicalButton(action) {
-      if (action === 'wants_to_talk') {
-        playPhoneSignal('bell');
-        handleDeviceAction('single_tap');
+      if (action === 'talk_button_press' || action === 'wants_to_talk') {
+        handleDeviceAction('talk_button_press');
         return;
       }
       if (action === 'lunara_start') {
-        handleDeviceAction('triple_tap');
+        handleDeviceAction('lunara_button_press');
         return;
       }
     }
@@ -1655,9 +1715,11 @@
       sosHoldStartedAt = performance.now();
       ringFlashUntil = Math.max(ringFlashUntil, sosHoldStartedAt + SOS_HOLD_MS + 400);
       const tick = () => {
-        const progress = Math.max(0, Math.min(1, (performance.now() - sosHoldStartedAt) / SOS_HOLD_MS));
-        playSosHoldBeep(progress);
-        sosHoldFeedbackTimer = setTimeout(tick, 560 - progress * 360);
+        if (!sosHoldStartedAt) return;
+        const elapsed = performance.now() - sosHoldStartedAt;
+        const progress = Math.max(0, Math.min(1, (elapsed - SOS_ARMING_DELAY_MS) / (SOS_HOLD_MS - SOS_ARMING_DELAY_MS)));
+        if (progress > 0) playSosHoldBeep(progress);
+        sosHoldFeedbackTimer = setTimeout(tick, progress > 0 ? 560 - progress * 360 : 140);
       };
       tick();
     }
@@ -1799,17 +1861,23 @@
         physicalButtonHoldSent = false;
         const action = button.userData.deviceAction;
         setPhysicalButtonScale(button, 1.07);
-        startBaseWaves(button.userData.color, 1200);
-        temporaryState(padActions[action]?.state || 'idle', action === 'help_request' ? 9000 : 1800);
         if (action === 'help_request') {
           clearTimeout(physicalButtonHoldTimer);
-          startSosHoldFeedback();
+          holdActive = true;
+          holdTriggered = false;
+          holdStart = performance.now();
+          handleDeviceAction('long_touch_start', { silent: true, sos: true });
           physicalButtonHoldTimer = setTimeout(() => {
+            if (physicalButtonHoldSent) return;
             physicalButtonHoldSent = true;
-            triggerSosNow();
+            holdTriggered = true;
+            handleDeviceAction('long_touch_10s');
             setPhysicalButtonScale(button, 1);
             activePhysicalButton = null;
           }, SOS_HOLD_MS);
+        } else {
+          startBaseWaves(button.userData.color, 1200);
+          temporaryState(padActions[action]?.state || 'wants_to_talk', 1800);
         }
         return;
       }
@@ -1850,10 +1918,16 @@
       if (button) {
         event.preventDefault();
         clearTimeout(physicalButtonHoldTimer);
-        stopSosHoldFeedback();
         setPhysicalButtonScale(button, 1);
         activePhysicalButton = null;
-        if (!physicalButtonHoldSent) runPhysicalButton(button.userData.deviceAction);
+        if (button.userData.deviceAction === 'help_request') {
+          const wasHold = holdActive;
+          holdActive = false;
+          stopSosHoldFeedback();
+          if (wasHold && !physicalButtonHoldSent) handleDeviceAction('long_touch_cancel', { silent: true });
+        } else if (!physicalButtonHoldSent) {
+          runPhysicalButton(button.userData.deviceAction);
+        }
         physicalButtonHoldSent = false;
         return;
       }
@@ -2030,7 +2104,7 @@
       clearDirectLineTimers();
       setState('direct_line_active');
       startDomeColorPulse('direct_line_active', 2400);
-      showFloatingCard('green', 'Прямая<br/>связь', currentTime(), 'Папа подключился');
+      showFloatingCard('green', 'Live<br/>Line', currentTime(), 'Папа подключился');
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'direct_line_accept' }));
       }
@@ -2039,25 +2113,27 @@
 
     function handleDeviceAction(action, options = {}) {
       const now = performance.now();
-      if (['idle', 'offline', 'voice_message', 'phrase_message', 'message_delivered', 'wants_to_talk', 'lunara_start', 'lunara_speaking', 'listening', 'sos_acknowledged', 'help_request'].includes(action)) {
-        stopSosHoldFeedback();
-        setSosLatched(false);
-        if (action !== 'idle' && action !== 'offline') finishDirectLineWaiting(false);
-      }
+
       if (action === 'direct_line_request') {
+        if (deviceMode === 'SOS_ARMING' || deviceMode === 'SOS_SENT') return;
+        setDeviceMode('DIRECT_LINE_ACTIVE');
         startDirectLineRequest();
         return;
       }
       if (action === 'direct_line_cancel') {
         finishDirectLineWaiting(false);
+        finishDeviceScenario('DIRECT_LINE_ACTIVE');
         setState('idle');
         return;
       }
       if (action === 'direct_line_accept') {
-        acceptDirectLine();
+        if (acceptDirectLine()) setDeviceMode('DIRECT_LINE_ACTIVE');
         return;
       }
       if (action === 'sos_acknowledged') {
+        setSosLatched(false);
+        stopSosHoldFeedback();
+        finishDeviceScenario('SOS_SENT');
         setState('idle');
         ringFlashUntil = 0;
         waveUntil = 0;
@@ -2065,62 +2141,92 @@
         return;
       }
       if (action === 'idle') {
+        stopSosHoldFeedback();
+        setSosLatched(false);
+        setDeviceMode('IDLE');
         setState('idle');
         ringFlashUntil = 0;
         waveUntil = 0;
         return;
       }
       if (action === 'offline') {
+        stopSosHoldFeedback();
+        setDeviceMode('IDLE');
         setState('offline');
         ringFlashUntil = 0;
         waveUntil = 0;
         showFloatingCard('gray', 'Нет<br/>связи', currentTime());
         return;
       }
+
+      if (action === 'talk_button_press') {
+        if (!canStartDeviceScenario('TALK_REQUEST_ACTIVE')) return;
+        setDeviceMode('TALK_REQUEST_ACTIVE', 5600);
+        resetTalkConfirmation();
+        playPhoneSignal('bell');
+        startTouchLight(colors.wants_to_talk, 2);
+        startBaseWaves(colors.wants_to_talk, 1800);
+        setState('wants_to_talk');
+        pulseUntil = now + 1500;
+        if (!options.silent) {
+          setTimeout(() => speakPhrase('Запрос отправлен.'), 220);
+          if (typeof window.sendWantsToTalk === 'function') window.sendWantsToTalk();
+        }
+        scheduleIdleReturn(5400);
+        return;
+      }
+
       if (action === 'long_touch_start') {
-        progressRing.visible = true;
+        if (!canStartDeviceScenario('SOS_ARMING')) return;
+        setDeviceMode('SOS_ARMING');
+        resetTalkConfirmation();
+        progressRing.visible = false;
         progressRing.material.color.setHex(colors.help_request);
-        progressRing.material.opacity = 0.72;
-        setState(options.sos ? 'help_request' : 'listening');
+        progressRing.material.opacity = 0;
+        setState('idle');
         if (options.sos) startSosHoldFeedback();
         return;
       }
       if (action === 'long_touch_cancel') {
+        if (deviceMode !== 'SOS_ARMING') return;
         progressRing.visible = false;
         stopSosHoldFeedback();
-        if (currentState === 'listening' || currentState === 'help_request') setState(selectedAction ? padActions[selectedAction].state : 'idle');
-        return;
-      }
-      if (action === 'single_tap') {
-        if (getTalkRequestMode() === 'instant') {
-          resetTalkConfirmation();
-          handleDeviceAction('wants_to_talk');
-          if (!options.silent && typeof window.sendWantsToTalk === 'function') window.sendWantsToTalk();
-          return;
-        }
-        if (talkConfirmUntil && performance.now() <= talkConfirmUntil) {
-          resetTalkConfirmation();
-          handleDeviceAction('wants_to_talk');
-          if (!options.silent && typeof window.sendWantsToTalk === 'function') window.sendWantsToTalk();
-        } else {
-          promptTalkConfirmation();
-        }
-        return;
-      }
-      if (action === 'triple_tap') {
-        resetTalkConfirmation();
-        playPhoneSignal('lunara');
-        handleDeviceAction('lunara_start');
-        if (!options.silent && typeof window.sendLunara === 'function') window.sendLunara();
+        finishDeviceScenario('SOS_ARMING');
+        if (currentState === 'sos_pending' || currentState === 'help_request' || currentState === 'listening') setState('idle');
         return;
       }
       if (action === 'long_touch_10s') {
+        if (!canStartDeviceScenario('SOS_SENT')) return;
         resetTalkConfirmation();
+        setDeviceMode('SOS_SENT');
         progressRing.visible = false;
         triggerSosNow();
         return;
       }
+
+      if (action === 'single_tap') {
+        // Short touches on the sphere are intentionally neutral: they must not start SOS or talk request.
+        if (deviceMode !== 'IDLE') return;
+        startTouchLight(colors.wants_to_talk, 1);
+        return;
+      }
+      if (action === 'triple_tap' || action === 'lunara_button_press') {
+        if (!canStartDeviceScenario('LUNARA_ACTIVE')) return;
+        setDeviceMode('LUNARA_ACTIVE', 9000);
+        resetTalkConfirmation();
+        playPhoneSignal('lunara');
+        setState('lunara_speaking');
+        startTouchLight(colors.lunara_start, 3);
+        startSurfaceWaves(colors.lunara_start);
+        startBaseWaves(colors.lunara_start, 2200);
+        pulseUntil = now + 1900;
+        if (!options.silent && typeof window.sendLunara === 'function') window.sendLunara();
+        scheduleIdleReturn(8200);
+        return;
+      }
+
       if (action === 'wants_to_talk') {
+        if (deviceMode === 'IDLE') setDeviceMode('TALK_REQUEST_ACTIVE', 5600);
         temporaryState('wants_to_talk', 5200);
         startTouchLight(colors.wants_to_talk, 2);
         startBaseWaves(colors.wants_to_talk, 1800);
@@ -2129,6 +2235,7 @@
         return;
       }
       if (action === 'voice_message') {
+        if (deviceMode === 'SOS_ARMING') return;
         temporaryState('voice_message', 5200);
         startBaseWaves(colors.voice_message, 2400);
         startDomeColorPulse('voice_message', 3900);
@@ -2137,18 +2244,20 @@
         return;
       }
       if (action === 'phrase_message') {
+        if (deviceMode === 'SOS_ARMING') return;
         temporaryState('phrase_message', 5200);
-        startBaseWaves(colors.phrase_message, 2400);
-        startDomeColorPulse('phrase_message', 4200);
+        startBaseWaves(colors.voice_message, 2400);
+        startDomeColorPulse('voice_message', 4200);
         pulseUntil = now + 2100;
         scheduleIdleReturn();
         return;
       }
       if (action === 'message_delivered') {
+        if (deviceMode === 'SOS_ARMING') return;
         temporaryState('message_delivered', 5200);
         startBaseWaves(colors.message_delivered, 1700);
         startDomeColorPulse('message_delivered', 3200);
-        showFloatingCard('delivered', 'Сообщение<br/>доставлено', currentTime());
+        showFloatingCard('blue', 'Сообщение<br/>доставлено', currentTime());
         pulseUntil = now + 1300;
         if (!options.silent && typeof window.sendEvent === 'function') window.sendEvent('message_delivered');
         scheduleIdleReturn();
@@ -2156,6 +2265,7 @@
       }
       if (action === 'help_request') {
         stopSosHoldFeedback();
+        setDeviceMode('SOS_SENT');
         setSosLatched(true);
         setState('help_request');
         startTouchLight(colors.help_request, 3);
@@ -2164,21 +2274,22 @@
         return;
       }
       if (action === 'lunara_start' || action === 'lunara_speaking') {
+        if (deviceMode === 'IDLE') setDeviceMode('LUNARA_ACTIVE', 9000);
         setState('lunara_speaking');
         startTouchLight(colors.lunara_start, 3);
         startSurfaceWaves(colors.lunara_start);
         startBaseWaves(colors.lunara_start, 2200);
         pulseUntil = now + 1900;
-        scheduleIdleReturn();
+        scheduleIdleReturn(8200);
         return;
       }
       if (action === 'listening') {
+        if (deviceMode === 'SOS_ARMING' || deviceMode === 'SOS_SENT') return;
         setState('listening');
         startTouchLight(colors.listening, 3);
         startSurfaceWaves(colors.listening);
       }
     }
-
     function trigger(eventName) {
       handleDeviceAction(eventName === 'voice' ? 'voice_message' : eventName, { silent: true });
     }
@@ -2208,10 +2319,10 @@
       const time = now * 0.001;
       const holdProgress = sosHoldStartedAt ? Math.max(0, Math.min(1, (now - sosHoldStartedAt) / SOS_HOLD_MS)) : 0;
       const holdDanger = holdProgress >= 0.4 ? (holdProgress - 0.4) / 0.6 : 0;
-      const holdPulse = sosHoldStartedAt
+      const holdPulse = holdDanger > 0
         ? 0.025 + Math.max(0, Math.sin(time * (4.8 + holdDanger * 8.5))) * (0.08 + holdDanger * 0.38)
         : 0;
-      const breath = (currentState === 'help_request' || sosHoldStartedAt)
+      const breath = (currentState === 'help_request' || holdDanger > 0)
         ? 1
         : 1 + Math.sin(time * 1.1) * (currentState === 'offline' ? 0.006 : 0.014);
       const pulseActive = Math.max(0, pulseUntil - now);
@@ -2270,13 +2381,19 @@
       }
 
       if (holdActive && !holdTriggered) {
-        const progress = Math.max(0.03, Math.min(1, (now - holdStart) / SOS_HOLD_MS));
-        progressRing.visible = true;
-        progressRing.geometry.dispose();
-        progressRing.geometry = new THREE.TorusGeometry(0.42, 0.018, 12, 96, Math.PI * 2 * progress);
-        progressRing.material.opacity = 0.38 + progress * 0.52;
-        ringMaterial.color.lerp(new THREE.Color(colors.help_request), progress * 0.035);
-        glowMaterial.color.lerp(new THREE.Color(colors.help_request), progress * 0.035);
+        const rawProgress = Math.max(0, Math.min(1, (now - holdStart) / SOS_HOLD_MS));
+        const armedProgress = Math.max(0, Math.min(1, (now - holdStart - SOS_ARMING_DELAY_MS) / (SOS_HOLD_MS - SOS_ARMING_DELAY_MS)));
+        if (armedProgress > 0) {
+          progressRing.visible = true;
+          progressRing.geometry.dispose();
+          progressRing.geometry = new THREE.TorusGeometry(0.42, 0.018, 12, 96, Math.PI * 2 * armedProgress);
+          progressRing.material.opacity = 0.34 + armedProgress * 0.56;
+          const sosWarmup = rawProgress < 0.7 ? colors.sos_pending : colors.help_request;
+          ringMaterial.color.lerp(new THREE.Color(sosWarmup), armedProgress * 0.04);
+          glowMaterial.color.lerp(new THREE.Color(sosWarmup), armedProgress * 0.04);
+        } else {
+          progressRing.visible = false;
+        }
       }
 
       rippleRings.forEach((ring, i) => {
