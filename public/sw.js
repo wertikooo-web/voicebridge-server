@@ -1,4 +1,4 @@
-const VERSION = '3.8-splash-once';
+const VERSION = '3.9-push-visible';
 const APP_SHELL_CACHE = 'voicebridge-shell-' + VERSION;
 const APP_SHELL_FILES = [
   '/',
@@ -70,9 +70,12 @@ function notificationOptions(data) {
 
   return {
     body: pushText(data.body),
-    tag: data.tag || data.type || 'voicebridge',
+    tag: (data.tag || data.type || 'voicebridge') + '-' + (data.pushId || data.sentAt || Date.now()),
     renotify: true,
-    requireInteraction: Boolean(data.requireInteraction || isSos),
+    requireInteraction: true,
+    silent: false,
+    timestamp: data.sentAt || Date.now(),
+    vibrate: isSos ? [240, 120, 240, 120, 360] : [160, 80, 160],
     icon: '/icon-192.png',
     badge: '/icon-192.png',
     data: {

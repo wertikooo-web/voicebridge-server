@@ -167,10 +167,17 @@ app.post("/api/push/unsubscribe", (req, res) => {
 
 async function sendPushToAll(payload) {
   if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY || pushSubscriptions.size === 0) return;
-  const body = JSON.stringify(payload);
+  const enrichedPayload = {
+    ...payload,
+    pushId: payload.pushId || crypto.randomUUID(),
+    sentAt: Date.now()
+  };
+  const body = JSON.stringify(enrichedPayload);
+  console.log(`Push sending ${enrichedPayload.type || "unknown"} to ${pushSubscriptions.size} subscription(s)`);
   const tasks = Array.from(pushSubscriptions.entries()).map(async ([endpoint, subscription]) => {
     try {
       await webpush.sendNotification(subscription, body);
+      console.log(`Push sent ${payload.type || "unknown"}`);
     } catch (error) {
       if (error.statusCode === 404 || error.statusCode === 410) {
         pushSubscriptions.delete(endpoint);
@@ -187,6 +194,7 @@ function notifyDadWantsToTalk() {
     title: "\uD83D\uDC4B \u0425\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
     body: "\u041F\u0430\u043F\u0430 \u0445\u043E\u0447\u0435\u0442 \u043F\u043E\u0433\u043E\u0432\u043E\u0440\u0438\u0442\u044C",
     tag: "dad-wants-to-talk",
+    requireInteraction: true,
     url: "/",
     actions: ["answer"]
   });
