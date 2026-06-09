@@ -1033,13 +1033,13 @@
       }
       if (data.type === 'direct_line_request') {
         window.voiceBridge3D?.handleDeviceAction('direct_line_request');
-        showFloatingCard('green', 'Live<br/>Line', currentTime(), 'Коснитесь устройства, чтобы ответить');
+        showFloatingCard('green', 'LIVE<br/>LINE', currentTime(), 'Коснитесь устройства, чтобы ответить');
         log('Запрос Live Line');
         return;
       }
       if (data.type === 'direct_line_cancel') {
         window.voiceBridge3D?.handleDeviceAction('direct_line_cancel');
-        log('Live Line отменена');
+        log('LIVE LINE отменена');
         return;
       }
       if (data.type === 'audio_message' || data.type === 'reply_message' || data.type === 'voice_message') {
@@ -1342,9 +1342,9 @@
     }
 
     const talkButtonGroup = new THREE.Group();
-    talkButtonGroup.position.set(0, 2.92, 0.02);
+    talkButtonGroup.position.set(0, 2.78, 0.02);
     const talkButtonBase = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.48, 0.54, 0.12, 96),
+      new THREE.CylinderGeometry(0.46, 0.52, 0.08, 96),
       new THREE.MeshStandardMaterial({ color: 0xf7fbff, roughness: 0.34, metalness: 0.03, emissive: colors.wants_to_talk, emissiveIntensity: 0.045 })
     );
     talkButtonGroup.add(talkButtonBase);
@@ -1353,17 +1353,17 @@
       new THREE.MeshBasicMaterial({ color: colors.wants_to_talk, transparent: true, opacity: 0.36, blending: THREE.AdditiveBlending, depthWrite: false })
     );
     talkButtonGlow.rotation.x = Math.PI / 2;
-    talkButtonGlow.position.y = 0.066;
+    talkButtonGlow.position.y = 0.044;
     talkButtonGroup.add(talkButtonGlow);
     const talkButtonIcon = new THREE.Mesh(
-      new THREE.CircleGeometry(0.34, 72),
+      new THREE.CircleGeometry(0.31, 72),
       new THREE.MeshBasicMaterial({ map: makeButtonIconTexture('\u260E', colors.wants_to_talk), transparent: true, opacity: 0.92, depthWrite: false })
     );
     talkButtonIcon.rotation.x = -Math.PI / 2;
-    talkButtonIcon.position.y = 0.072;
+    talkButtonIcon.position.y = 0.048;
     talkButtonGroup.add(talkButtonIcon);
     const talkButtonHit = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.58, 0.58, 0.18, 64),
+      new THREE.CylinderGeometry(0.56, 0.56, 0.12, 64),
       new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })
     );
     talkButtonHit.userData.deviceAction = 'talk_button_press';
@@ -2104,7 +2104,7 @@
       clearDirectLineTimers();
       setState('direct_line_active');
       startDomeColorPulse('direct_line_active', 2400);
-      showFloatingCard('green', 'Live<br/>Line', currentTime(), 'Папа подключился');
+      showFloatingCard('green', 'LIVE<br/>LINE', currentTime(), 'Папа подключился');
       if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'direct_line_accept' }));
       }

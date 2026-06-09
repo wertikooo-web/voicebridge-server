@@ -718,7 +718,7 @@
           onmouseup="this.style.transform='scale(1)'"
           ontouchstart="this.style.transform='scale(.93)'"
           ontouchend="this.style.transform='scale(1)'"
-          title="LIVE — Live Line">📞</button>
+          title="LIVE LINE">📞</button>
         <span style="font-size:9px;font-weight:800;color:#16a34a;letter-spacing:.06em;text-transform:uppercase">LIVE</span>
       </div>
       <button class="notif-close" onclick="closeNotif()">✕</button>
@@ -778,7 +778,7 @@
 <div class="bottom-nav">
   <div class="nav-item active"><span class="nav-icon">🏠</span><span class="nav-label">Главная</span></div>
   <div class="nav-item" onclick="window.location.href='/phrases.html'"><span class="nav-icon">💬</span><span class="nav-label">Фразы</span></div>
-  <div class="nav-item" onclick="window.location.href='/settings.html?panel=lunaraai#lunaraai'"><span class="nav-icon">✨</span><span class="nav-label">Lunara AI</span></div>
+  <div class="nav-item" onclick="openLunaraAiPanel()"><span class="nav-icon">✨</span><span class="nav-label">Lunara AI</span></div>
   <div class="nav-item" onclick="window.location.href='/settings.html'"><span class="nav-icon">⚙️</span><span class="nav-label">Настройки</span></div>
 </div>
 
@@ -808,7 +808,7 @@
           style="border-color:#22c55e;background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
         <span class="call-choice-icon" style="background:#dcfce7;color:#16a34a">📞</span>
         <span>
-          <span class="call-choice-title" style="color:#16a34a">LIVE — Live Line</span>
+          <span class="call-choice-title" style="color:#16a34a">LIVE LINE</span>
           <span class="call-choice-sub">Двусторонний канал VoiceBridge. Папа услышит сразу.</span>
         </span>
       </button>
@@ -1138,6 +1138,11 @@ function clearActiveAlertsForCall() {
   }
 }
 
+function openLunaraAiPanel() {
+  sessionStorage.setItem('vb-open-settings-panel', 'lunaraai');
+  window.location.href = '/settings.html?panel=lunaraai#lunaraai';
+}
+
 function closeCallModal() {
   document.getElementById('call-modal')?.classList.remove('show');
 }
@@ -1145,9 +1150,9 @@ function closeCallModal() {
 function startDirectLine() {
   closeCallModal();
   clearActiveAlertsForCall();
-  showNotif('Live Line', 'Нажми CALL, затем держи зелёную кнопку и говори', false, { actionText: 'CALL' });
+  showNotif('LIVE LINE', 'Нажми CALL, затем держи зелёную кнопку и говори', false, { actionText: 'CALL' });
   setMiniDeviceState('talk', 2600);
-  addActivity('Открыта Live Line', '🎙️', 'system');
+  addActivity('Открыта LIVE LINE', '🎙️', 'system');
 }
 
 function startPhoneCall() {
@@ -1299,14 +1304,14 @@ async function handleSocketMessage(event) {
   if (data.type === 'direct_line_accept') {
     directLineAccepted = true;
     setDirectLineMode(true, { notify: false });
-    showNotif('Live Line', 'Папа подключился. Держи зелёную кнопку - говори.', false, { actionText: 'OFF' });
+    showNotif('LIVE LINE', 'Папа подключился. Держи зелёную кнопку - говори.', false, { actionText: 'OFF' });
     document.querySelector('.notif-action')?.classList.add('direct-line-off');
-    addActivity('Папа подключился к Live Line', '☎', 'system');
+    addActivity('Папа подключился к LIVE LINE', '☎', 'system');
   }
   if (data.type === 'direct_line_timeout') {
     setDirectLineMode(false, { notify: false });
     document.getElementById('notif-banner')?.classList.add('hidden');
-    addActivity('Папа не ответил на Live Line', '☎', 'system');
+    addActivity('Папа не ответил на LIVE LINE', '☎', 'system');
   }
 }
 
@@ -1465,7 +1470,7 @@ async function startRec() {
     tapRecordingMode = false;
     setMicSending(false);
     micBtn.classList.remove('recording');
-    document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
+    document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'LIVE LINE' : 'Удержи';
     alert('Нет доступа к микрофону');
   }
 }
@@ -1501,7 +1506,7 @@ async function cancelRec() {
   recordingStartedAt = 0;
   setMicSending(false);
   micBtn.classList.remove('recording');
-  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
+  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'LIVE LINE' : 'Удержи';
 }
 
 async function finishPcmRecording(transcriptPromise) {
@@ -1550,7 +1555,7 @@ async function finishPcmRecording(transcriptPromise) {
   recordingStartedAt = 0;
   setMicSending(false);
   micBtn.classList.remove('recording');
-  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
+  document.getElementById('mic-label').textContent = llActive ? 'НАЖМИ' : directLineMode ? 'LIVE LINE' : 'Удержи';
 }
 
 function downsampleBuffer(buffer, inputRate, outputRate) {
@@ -1962,7 +1967,7 @@ function setDirectLineMode(enabled, options = {}) {
   const label = document.getElementById('mic-label');
   btn?.classList.toggle('direct-line', directLineMode);
   micOuter?.classList.toggle('direct-line', directLineMode);
-  if (label && !isRecording) label.textContent = llActive ? 'НАЖМИ' : directLineMode ? 'Live Line' : 'Удержи';
+  if (label && !isRecording) label.textContent = llActive ? 'НАЖМИ' : directLineMode ? 'LIVE LINE' : 'Удержи';
   if (directLineMode) setMiniDeviceState('direct-line');
   else if (!sosResponsePending) setMiniDeviceState('idle');
   if (wasEnabled && !directLineMode && options.notify !== false) {
@@ -1972,7 +1977,7 @@ function setDirectLineMode(enabled, options = {}) {
 function answerNotif() {
   cancelReminder();
   hideReminderChip();
-  if (document.getElementById('notif-title')?.textContent === 'Live Line') {
+  if (document.getElementById('notif-title')?.textContent === 'LIVE LINE') {
     if (directLineMode) {
       setDirectLineMode(false);
       document.getElementById('notif-banner').classList.add('hidden');

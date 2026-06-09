@@ -1612,7 +1612,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadReminders();
   initDayChips();
   setLunaraType(lunaraType);
-  const initialPanel = new URLSearchParams(location.search).get('panel') || location.hash.replace('#', '');
+  const initialPanel = sessionStorage.getItem('vb-open-settings-panel') || new URLSearchParams(location.search).get('panel') || location.hash.replace('#', '');
+  sessionStorage.removeItem('vb-open-settings-panel');
   if (initialPanel && document.getElementById('p-' + initialPanel)) {
     setTimeout(() => {
       open_(initialPanel);

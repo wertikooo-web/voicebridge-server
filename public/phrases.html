@@ -82,6 +82,7 @@
 </div>
 
 <script>
+const MAX_PHRASES = 50;
 const EMOJIS = ['☀️','❤️','🌙','👋','🏃','💕','🍽️','📞','😊','🏡','💊','🥗','🎂','🌸','🤗','💪','🙏','🎵','☕','🌺','🍎','🌟','👴','👵','🐱','🐶','✈️','🏖️','❄️','🌈'];
 
 const DEFAULT_PHRASES = [
@@ -99,7 +100,7 @@ const DEFAULT_PHRASES = [
   { id: 12, emoji: '🥗', text: 'Приятного аппетита!' },
 ];
 
-let phrases = JSON.parse(localStorage.getItem('vb-phrases') || 'null') || DEFAULT_PHRASES;
+let phrases = (JSON.parse(localStorage.getItem('vb-phrases') || 'null') || DEFAULT_PHRASES).slice(0, MAX_PHRASES);
 let selectedEmoji = '💬';
 let editingPhraseId = null;
 
@@ -208,6 +209,7 @@ function savePhraseForm() {
     resetPhraseForm();
     return;
   }
+  if (phrases.length >= MAX_PHRASES) { alert('Можно сохранить максимум 50 фраз. Удали лишнюю фразу, чтобы добавить новую.'); return; }
   const phrase = { id: Date.now(), emoji: selectedEmoji, text };
   phrases.unshift(phrase);
   save();
@@ -256,6 +258,7 @@ function sendPhrase(id) {
 }
 
 function save() {
+  phrases = phrases.slice(0, MAX_PHRASES);
   localStorage.setItem('vb-phrases', JSON.stringify(phrases));
 }
 
