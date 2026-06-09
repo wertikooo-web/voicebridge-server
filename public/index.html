@@ -778,7 +778,7 @@
 <div class="bottom-nav">
   <div class="nav-item active"><span class="nav-icon">🏠</span><span class="nav-label">Главная</span></div>
   <div class="nav-item" onclick="window.location.href='/phrases.html'"><span class="nav-icon">💬</span><span class="nav-label">Фразы</span></div>
-  <div class="nav-item" onclick="window.location.href='/settings.html?panel=lunaraai'"><span class="nav-icon">✨</span><span class="nav-label">Lunara</span></div>
+  <div class="nav-item" onclick="window.location.href='/settings.html?panel=lunaraai#lunaraai'"><span class="nav-icon">✨</span><span class="nav-label">Lunara AI</span></div>
   <div class="nav-item" onclick="window.location.href='/settings.html'"><span class="nav-icon">⚙️</span><span class="nav-label">Настройки</span></div>
 </div>
 
@@ -960,6 +960,18 @@ if ('serviceWorker' in navigator) {
   });
 }
 window.addEventListener('storage', event => {
+  if (event.key === 'vb-lunara-feedback' && event.newValue) {
+    try {
+      const feedback = JSON.parse(event.newValue);
+      if (feedback.phase === 'start') {
+        setMiniDeviceState('lunara', 4200);
+        playBell('lunaraMessage');
+      } else if (feedback.phase === 'sent') {
+        setMiniDeviceState('delivered', 2200);
+        playBell('sent');
+      }
+    } catch(e) {}
+  }
   if (event.key === 'vb-my-avatar' || event.key === 'vb-profile-avatar' || event.key === 'vb-my-name') {
     applyProfileImages();
   }
@@ -1200,9 +1212,10 @@ async function handleSocketMessage(event) {
   }
   if (data.type === 'audio_message' || data.type === 'reply_message') {
     const deviceName = localStorage.getItem('vb-profile-display-name') || localStorage.getItem('vb-device-name') || 'Папа';
-    setMiniDeviceState('voice', 3600);
-    addActivity('Голосовое сообщение', '🔊', 'incoming', deviceName);
-    playBell('incoming');
+    const isLunaraMessage = data.source === 'lunara' || data.originalType === 'lunara_speak';
+    setMiniDeviceState(isLunaraMessage ? 'lunara' : 'voice', isLunaraMessage ? 5200 : 3600);
+    addActivity(isLunaraMessage ? 'Lunara говорит' : 'Голосовое сообщение', isLunaraMessage ? '✨' : '🔊', isLunaraMessage ? 'lunara' : 'incoming', deviceName);
+    playBell(isLunaraMessage ? 'lunaraMessage' : 'incoming');
     await delay(MESSAGE_PLAY_DELAY_MS);
     if (data.audio_url) {
       new Audio(data.audio_url).play();
@@ -1277,7 +1290,8 @@ async function handleSocketMessage(event) {
     sosInterval = setInterval(() => playBell('sos'), 10000);
   }
   if (data.type === 'lunara_start') {
-    setMiniDeviceState('lunara', 4200);
+    setMiniDeviceState('lunara', 5200);
+    playBell('lunaraMessage');
     const dName = localStorage.getItem('vb-profile-display-name') || localStorage.getItem('vb-device-name') || 'Папа';
     const duration = Number(data.duration || data.durationSeconds || data.seconds || 0);
     addActivity('Общался с Lunara', '✨', 'lunara', dName, { duration: duration > 0 ? duration : null });
@@ -1754,7 +1768,6 @@ setInterval(() => {
 
 cleanupActivityLog();
 renderActivity();
-renderQuickPhrases();
 
 let remindTitle = '';
 let remindSub = '';
@@ -1987,7 +2000,12 @@ function answerNotif() {
 let llActive=false,llTimer=null,llSecs=180,llTimerRunning=false,llStream=null,llProc=null,llCtx=null;
 const dadVoices=[];
 
-function startLiveLine(){closeNotif();clearSosForActiveReply();sendSocket({type:'live_line_start'});}
+async function startLiveLine(){
+  closeNotif();
+  clearSosForActiveReply();
+  sendSocket({type:'live_line_start'});
+  await onLiveLineStarted();
+}
 // showRemindMenu removed — remind chips shown directly via withRemind flag
 
 async function onLiveLineStarted(){
@@ -2214,6 +2232,7 @@ function openModal() {
   document.getElementById('modal').classList.add('show');
 }
 function closeModal() { document.getElementById('modal').classList.remove('show'); }
+renderQuickPhrases();
 
 function isNightModeActive() {
   if (localStorage.getItem('vb-night-enabled') !== 'true') return false;
@@ -2249,6 +2268,7 @@ function getSoundForType(type) {
     warning: 'warning'
   };
   const key = keyMap[type] || 'incoming';
+  if (key === 'lunara_message' && localStorage.getItem('vb-sound-disabled-lunara_message') === 'true') return 'none';
   return localStorage.getItem('vb-sound-' + key) || fallback[key];
 }
 
@@ -2256,6 +2276,7 @@ function playBell(type) {
   try {
     if (type !== 'sos' && isNightModeActive()) return;
     const sound = getSoundForType(type);
+    if (sound === 'none') return;
     if (!phoneAudioCtx) phoneAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
     if (phoneAudioCtx.state === 'suspended') phoneAudioCtx.resume();
     const ctx = phoneAudioCtx;
@@ -2271,6 +2292,7 @@ function playBell(type) {
       bright: [988, 1174],
       calm: [392, 523],
       lunar: [523, 784, 1175],
+      luna_soft: [587, 880, 1175],
       sent: [784, 1046],
       warning: [220, 196],
       sos: [660, 660, 660]

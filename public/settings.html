@@ -62,6 +62,13 @@
     .sound-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
     .sound-btn { border: 1.5px solid #e5e7eb; background: white; border-radius: 11px; padding: 9px 6px; font-size: 11px; font-weight: 700; color: #374151; cursor: pointer; }
     .sound-btn.active { border-color: #7c5cbf; background: #ede9f8; color: #5b3fa3; }
+    .sound-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    .sound-mini-btn { border: 1px solid #ddd6fe; background: #fff; color: #5b3fa3; border-radius: 10px; padding: 8px 6px; font-size: 11px; font-weight: 800; cursor: pointer; }
+    .sound-mini-btn.warning { border-color: #fed7aa; color: #9a3412; background: #fff7ed; }
+    .sound-setting.disabled { opacity: .78; }
+    .sound-disabled-note { margin-top: 8px; font-size: 11px; line-height: 1.35; color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 10px; padding: 8px; }
+    .sound-toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: 12px; color: #4b5563; font-weight: 700; }
+    .sound-toggle-row input { width: 18px; height: 18px; accent-color: #7c5cbf; }
     .history-list { display: grid; gap: 10px; }
     .history-day { font-size: 12px; font-weight: 800; color: #7c5cbf; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 8px; }
     .history-item { display: grid; grid-template-columns: 40px 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; background: #f9fafb; border: 1px solid #eef2f7; }
@@ -107,7 +114,9 @@
     .voice-answer { font-size: 28px; font-weight: 800; color: #1a1a2e; margin: 8px 0 18px; }
     .voice-talk-button { width: 118px; height: 118px; border-radius: 50%; margin: 0 auto 18px; border: 0; display: grid; place-items: center; background: radial-gradient(circle at 35% 28%, #a78bfa, #7c5cbf 58%, #5b3fa3); box-shadow: 0 16px 34px rgba(124,92,191,0.28), inset 0 1px 0 rgba(255,255,255,0.28); color: white; font-size: 15px; font-weight: 800; }
     .voice-disabled-note { background: #fffbeb; border: 1px solid #fde68a; border-radius: 14px; padding: 12px; font-size: 12px; line-height: 1.45; color: #92400e; text-align: center; }
-    .lunara-panel { background: linear-gradient(145deg, #fff7ed, #f5f3ff); border: 1px solid #eadcff; border-radius: 18px; padding: 14px; margin-top: 14px; }
+    .lunara-panel { background: linear-gradient(145deg, #fff7ed, #f5f3ff); border: 1px solid #eadcff; border-radius: 18px; padding: 14px; margin-top: 14px; transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease; }
+    .lunara-panel.sending { border-color: #a78bfa; box-shadow: 0 0 0 5px rgba(167,139,250,.12), 0 16px 34px rgba(124,58,237,.16); transform: translateY(-1px); }
+    .lunara-panel.sending .btn-soft { background: linear-gradient(135deg,#ede9fe,#ddd6fe); border-color: #a78bfa; color: #5b21b6; }
     .lunara-prompt-wrap { position: relative; }
     .lunara-panel textarea { min-height: 104px; padding-right: 46px; resize: vertical; }
     .lunara-clear-btn { position: absolute; right: 10px; bottom: 12px; width: 34px; height: 34px; border-radius: 12px; border: 1px solid #fee2e2; background: rgba(255,255,255,0.92); color: #dc2626; font-size: 16px; display: grid; place-items: center; cursor: pointer; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; box-shadow: 0 8px 18px rgba(220,38,38,0.10); }
@@ -888,6 +897,19 @@ function scheduleLunaraPrompt(payload) {
   if (status) status.textContent = 'Запланировано: Lunara отправит фразу ' + date.toLocaleString('ru-RU', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) + '.';
   alert('Запланировано. Задача добавлена в Расписание.');
 }
+function emitLunaraFeedback(phase) {
+  try {
+    localStorage.setItem('vb-lunara-feedback', JSON.stringify({ phase, ts: Date.now() }));
+  } catch(e) {}
+}
+function playLunaraNoticeSound() {
+  if (localStorage.getItem('vb-sound-disabled-lunara_message') === 'true') return;
+  playPreviewSound(localStorage.getItem('vb-sound-lunara_message') || 'lunar');
+}
+function setLunaraSending(active) {
+  const panel = document.querySelector('#p-lunaraai .lunara-panel');
+  if (panel) panel.classList.toggle('sending', Boolean(active));
+}
 async function submitLunara(mode) {
   const prompt = document.getElementById('lunara-prompt').value.trim();
   const status = document.getElementById('lunara-status');
@@ -907,7 +929,10 @@ async function submitLunara(mode) {
     scheduleLunaraPrompt(payload);
     return;
   }
-  if (status) status.textContent = 'Lunara думает и готовит голос...';
+  setLunaraSending(true);
+  playLunaraNoticeSound();
+  emitLunaraFeedback('start');
+  if (status) status.textContent = 'Lunara активна: готовит голос и отправляет его на устройство...';
   try {
     const response = await fetch('/api/lunara/speak', {
       method: 'POST',
@@ -916,8 +941,13 @@ async function submitLunara(mode) {
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.ok) throw new Error(data.error || 'Не удалось отправить запрос Lunara');
+    setLunaraSending(false);
+    emitLunaraFeedback('sent');
+    playPreviewSound('calm');
     if (status) status.textContent = data.scheduled ? 'Запланировано. Реальное расписание подключим позже.' : 'Голос Lunara отправлен на устройство.';
   } catch (error) {
+    setLunaraSending(false);
+    playPreviewSound('drop');
     if (status) status.textContent = 'Ошибка: ' + error.message;
     alert('Lunara пока не ответила: ' + error.message);
   }
@@ -1395,9 +1425,26 @@ const soundTargets = [
   { key: 'talk', title: 'Хочу поговорить', fallback: 'bell' },
   { key: 'sos', title: 'SOS', fallback: 'sos' },
   { key: 'lunara', title: 'Вызов Lunara', fallback: 'lunar' },
+  { key: 'lunara_message', title: 'Звук уведомлений Lunara AI', fallback: 'lunar', allowDisable: true },
   { key: 'incoming', title: 'Входящие сообщения', fallback: 'soft' }
 ];
 function soundStorageKey(key) { return 'vb-sound-' + key; }
+function soundDisabledKey(key) { return 'vb-sound-disabled-' + key; }
+function isSoundDisabled(key) { return localStorage.getItem(soundDisabledKey(key)) === 'true'; }
+function setSoundDisabled(key, disabled) {
+  localStorage.setItem(soundDisabledKey(key), disabled ? 'true' : 'false');
+  renderSoundSettings();
+  updateSoundSummary();
+}
+function resetSoundChoice(key) {
+  const target = soundTargets.find(item => item.key === key);
+  if (!target) return;
+  localStorage.setItem(soundStorageKey(key), target.fallback);
+  localStorage.setItem(soundDisabledKey(key), 'false');
+  renderSoundSettings();
+  updateSoundSummary();
+  playPreviewSound(target.fallback);
+}
 function getSoundChoice(key, fallback) { return localStorage.getItem(soundStorageKey(key)) || fallback; }
 function setSoundChoice(key, sound) {
   const target = soundTargets.find(item => item.key === key);
@@ -1413,20 +1460,27 @@ function renderSoundSettings() {
   root.innerHTML = soundTargets.map(target => {
     const current = getSoundChoice(target.key, target.fallback);
     const currentLabel = soundPresets.find(p => p.id === current)?.label || current;
-    return `<div class="sound-setting">
+    const disabled = target.allowDisable && isSoundDisabled(target.key);
+    return `<div class="sound-setting ${disabled ? 'disabled' : ''}">
       <div class="sound-head">
         <div class="sound-title">${target.title}</div>
-        <div class="sound-current" id="sound-current-${target.key}">${currentLabel}</div>
+        <div class="sound-current" id="sound-current-${target.key}">${disabled ? 'Выключен' : currentLabel}</div>
       </div>
       <div class="sound-grid">
-        ${soundPresets.map(sound => `<button class="sound-btn ${sound.id === current ? 'active' : ''}" onclick="setSoundChoice('${target.key}','${sound.id}')">${sound.label}</button>`).join('')}
+        ${soundPresets.map(sound => `<button class="sound-btn ${sound.id === current && !disabled ? 'active' : ''}" onclick="setSoundChoice('${target.key}','${sound.id}')">${sound.label}</button>`).join('')}
       </div>
+      ${target.allowDisable ? `<div class="sound-actions">
+        <button class="sound-mini-btn" onclick="playPreviewSound(getSoundChoice('${target.key}','${target.fallback}'))">Прослушать</button>
+        <button class="sound-mini-btn" onclick="resetSoundChoice('${target.key}')">Стандарт</button>
+      </div>
+      <label class="sound-toggle-row"><span>Предварительный сигнал Lunara AI</span><input type="checkbox" ${disabled ? '' : 'checked'} onchange="setSoundDisabled('${target.key}', !this.checked)"></label>
+      ${disabled ? '<div class="sound-disabled-note">Предварительный сигнал Lunara AI выключен. Само сообщение всё равно будет отправляться и звучать.</div>' : ''}` : ''}
     </div>`;
   }).join('');
 }
 function updateSoundSummary() {
   const el = document.getElementById('sub-sounds');
-  if (el) el.textContent = '4 сигнала настроены';
+  if (el) el.textContent = '5 сигналов настроены';
 }
 function playPreviewSound(sound) {
   try {
@@ -1443,6 +1497,7 @@ function playPreviewSound(sound) {
       bright: [988, 1174],
       calm: [392, 523],
       lunar: [523, 784, 1175],
+      luna_soft: [587, 880, 1175],
       sos: [660, 660, 660]
     };
     const notes = patterns[sound] || patterns.bell;
@@ -1557,8 +1612,10 @@ document.addEventListener('DOMContentLoaded', () => {
   loadReminders();
   initDayChips();
   setLunaraType(lunaraType);
-  const initialPanel = new URLSearchParams(location.search).get('panel');
-  if (initialPanel && document.getElementById('p-' + initialPanel)) open_(initialPanel);
+  const initialPanel = new URLSearchParams(location.search).get('panel') || location.hash.replace('#', '');
+  if (initialPanel && document.getElementById('p-' + initialPanel)) {
+    setTimeout(() => open_(initialPanel), 50);
+  }
 });
 </script>
 </body>
