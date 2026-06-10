@@ -54,23 +54,98 @@ const receivers = new Set();
 let phoneB = null;
 let clientSeq = 0;
 
-/* PATCH:liveLineState */
-const LIVE_LINE_TIMEOUT_MS = 3 * 60 * 1000;
-const liveLineState = { active: false, timer: null };
+const LIVE_LINE_TIMEOUT_MS = Number(process.env.LIVE_LINE_TIMEOUT_MS || 3 * 60 * 1000);
+const liveLineState = {
+  active: false,
+  sessionId: null,
+  startedAt: 0,
+  timer: null,
+  sender: null,
+  receiver: null
+};
 
-function endLiveLine(reason) {
-  if (!liveLineState.active) return;
+function liveLineMessage(type, extra = {}) {
+  return {
+    type,
+    session_id: liveLineState.sessionId,
+    timeout_ms: LIVE_LINE_TIMEOUT_MS,
+    started_at: liveLineState.startedAt,
+    ...extra
+  };
+}
+
+function clearLiveLineTimer() {
+  if (liveLineState.timer) {
+    clearTimeout(liveLineState.timer);
+    liveLineState.timer = null;
+  }
+}
+
+function resetLiveLineState() {
+  clearLiveLineTimer();
   liveLineState.active = false;
-  if (liveLineState.timer) { clearTimeout(liveLineState.timer); liveLineState.timer = null; }
-  const msg = { type: 'live_line_ended', reason };
-  broadcastToSenders(msg);
-  sendToReceivers(msg);
-  console.log('live_line ended:', reason);
+  liveLineState.sessionId = null;
+  liveLineState.startedAt = 0;
+  liveLineState.sender = null;
+  liveLineState.receiver = null;
 }
 
 function startLiveLineTimer() {
-  if (liveLineState.timer) clearTimeout(liveLineState.timer);
-  liveLineState.timer = setTimeout(() => endLiveLine('timeout'), LIVE_LINE_TIMEOUT_MS);
+  clearLiveLineTimer();
+  liveLineState.timer = setTimeout(() => endLiveLine("timeout"), LIVE_LINE_TIMEOUT_MS);
+}
+
+function startLiveLine(ws) {
+  if (ws.role !== "sender") {
+    safeSend(ws, { type: "live_line_failed", reason: "sender_required" });
+    return false;
+  }
+
+  const receiver = phoneB || receivers.values().next().value || null;
+  if (!receiver || receiver.readyState !== WebSocket.OPEN) {
+    safeSend(ws, { type: "live_line_failed", reason: "receiver_offline" });
+    console.log(`live_line_start failed: receiver offline (${connectionCounts()})`);
+    return false;
+  }
+
+  if (liveLineState.active) {
+    safeSend(ws, liveLineMessage("live_line_started", { already_active: true }));
+    return true;
+  }
+
+  liveLineState.active = true;
+  liveLineState.sessionId = `live-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+  liveLineState.startedAt = Date.now();
+  liveLineState.sender = ws;
+  liveLineState.receiver = receiver;
+  startLiveLineTimer();
+
+  safeSend(receiver, liveLineMessage("live_line_start"));
+  safeSend(ws, liveLineMessage("live_line_started"));
+  broadcastToSenders(liveLineMessage("live_line_started"), ws);
+  console.log(`live_line started (${liveLineState.sessionId}, timeout=${LIVE_LINE_TIMEOUT_MS}ms)`);
+  return true;
+}
+
+function endLiveLine(reason = "user") {
+  if (!liveLineState.active) return;
+  const msg = liveLineMessage("live_line_ended", { reason });
+  const sessionId = liveLineState.sessionId;
+  resetLiveLineState();
+  broadcastToSenders(msg);
+  sendToReceivers(msg);
+  console.log(`live_line ended (${sessionId}): ${reason}`);
+}
+
+function relayLiveAudioChunk(ws, data) {
+  if (!liveLineState.active) return;
+  if (ws.role === "sender") {
+    sendToReceivers(data);
+    return;
+  }
+  if (ws.role === "receiver") {
+    broadcastToSenders(data);
+  }
 }
 
 function getLanAddress() {
@@ -343,7 +418,9 @@ function notifyHelpRequest() {
 function cleanupClient(ws) {
   const removedSender = senders.delete(ws);
   const removedReceiver = receivers.delete(ws);
+  const wasLiveLineParticipant = liveLineState.active && (ws === liveLineState.sender || ws === liveLineState.receiver);
   if (ws === phoneB) phoneB = receivers.values().next().value || null;
+  if (wasLiveLineParticipant) endLiveLine(removedReceiver ? "receiver_disconnected" : "sender_disconnected");
   if (removedSender || removedReceiver) setTimeout(broadcastStatus, 0);
 }
 
@@ -543,27 +620,17 @@ wss.on("connection", (ws, req) => {
       console.log(`lunara_start -> ${senders.size} sender(s)`);
       broadcastToSenders({ type: "lunara_start" });
     }
-    /* PATCH:liveLineHandlers */
-    if (data.type === 'live_line_start') {
-      if (hasReceivers()) {
-        liveLineState.active = true;
-        startLiveLineTimer();
-        sendToReceivers({ type: 'live_line_start' });
-        broadcastToSenders({ type: 'live_line_started' });
-        console.log('live_line_start -> receiver');
-      }
+    if (data.type === "live_line_start") {
+      startLiveLine(ws);
     }
-    if (data.type === 'live_audio_chunk') {
-      if (!liveLineState.active) return;
-      if (ws.role === 'sender' && hasReceivers()) { sendToReceivers(data); }
-      else if (ws.role === 'receiver') { broadcastToSenders(data); }
+    if (data.type === "live_audio_chunk") {
+      relayLiveAudioChunk(ws, data);
     }
-    /* PATCH:liveWarning */
-    if (data.type === 'live_line_warning') {
-      if (ws.role === 'sender') sendToReceivers({type:'live_line_warning'});
+    if (data.type === "live_line_warning") {
+      if (liveLineState.active && ws.role === "sender") sendToReceivers(data);
     }
-    if (data.type === 'live_line_end') {
-      endLiveLine(data.reason || 'user');
+    if (data.type === "live_line_end") {
+      endLiveLine(data.reason || "user");
     }
     if (data.type === 'dad_voice_message' && senders.size) {
       const audioFiles = saveAudioFiles(data, ws);
