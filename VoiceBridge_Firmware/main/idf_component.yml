@@ -1,0 +1,6 @@
+## IDF Component Manager manifest
+dependencies:
+  idf: ">=5.0"
+  espressif/esp_websocket_client: "^1.6.1"
+  espressif/button: "^3.3.0"
+  espressif/es8311: "^1.0.0"
