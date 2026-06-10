@@ -919,6 +919,7 @@
           localStorage.setItem(key, value);
         }
       });
+      window.voiceBridge3D?.refreshLightBrightness?.();
       const phoneFrame = document.querySelector('.phone-screen iframe');
       if (phoneFrame) phoneFrame.contentWindow?.postMessage({ type: 'profile_sync_applied' }, location.origin);
       log('Профиль синхронизирован с телефона');
@@ -1679,6 +1680,19 @@
       return localStorage.getItem('vb-talk-request-mode') || 'instant';
     }
 
+    function getDeviceLightBrightness() {
+      const value = localStorage.getItem('vb-light-brightness') || 'normal';
+      return ['off', 'night', 'normal', 'bright'].includes(value) ? value : 'normal';
+    }
+
+    function getIdleLightProfile() {
+      const mode = getDeviceLightBrightness();
+      if (mode === 'off') return { color: 0xf8fafc, glow: 0, breath: 0, ring: 0 };
+      if (mode === 'night') return { color: 0xfff7ed, glow: 0.035, breath: 0.008, ring: 0.002 };
+      if (mode === 'bright') return { color: 0xfff1d6, glow: 0.18, breath: 0.04, ring: 0.012 };
+      return { color: 0xfff4e5, glow: 0.11, breath: 0.025, ring: 0.006 };
+    }
+
     function promptTalkConfirmation() {
       talkConfirmUntil = performance.now() + 7000;
       clearTimeout(talkConfirmTimer);
@@ -1983,7 +1997,7 @@
       const color = colors[state] || colors.idle;
       ringMaterial.color.setHex(color);
       glowMaterial.color.setHex(color);
-      targetDomeColor.setHex(domeColors[state] || domeColors.idle);
+      targetDomeColor.setHex(state === 'idle' ? getIdleLightProfile().color : (domeColors[state] || domeColors.idle));
     }
 
     function temporaryState(state, duration = 2600) {
@@ -2305,14 +2319,18 @@
       colorPulseUntil = performance.now() + 60000; // 60 сек — всё время сессии
     }
     function setLiveLineIdle() {
-      const idleHex = domeColors['idle'] || 0xfff3cc;
+      const idleHex = getIdleLightProfile().color;
       setState('idle');
       const idleColor = new THREE.Color(idleHex);
       targetDomeColor.copy(idleColor);
       plastic.color.copy(idleColor);
       colorPulseUntil = 0; // сбросить pulse
     }
-    window.voiceBridge3D = { setState, trigger, handleDeviceAction, startDomeColorPulse, setLiveLineActive, setLiveLineIdle };
+    function refreshLightBrightness() {
+      if (currentState === 'idle') setState('idle');
+    }
+
+    window.voiceBridge3D = { setState, trigger, handleDeviceAction, startDomeColorPulse, setLiveLineActive, setLiveLineIdle, refreshLightBrightness };
     window.handleDeviceAction = handleDeviceAction;
 
     function animate(now) {
@@ -2351,7 +2369,8 @@
       const domeTarget = targetDomeColor.clone();
       if (domePulseMix) domeTarget.lerp(colorPulseColor, domePulseMix);
       plastic.color.lerp(domeTarget, domePulseMix ? 0.16 : 0.08);
-      const idleGlow = currentState === 'idle' ? 0.11 + Math.sin(time * 1.1) * 0.025 : 0.17;
+      const idleProfile = getIdleLightProfile();
+      const idleGlow = currentState === 'idle' ? idleProfile.glow + Math.sin(time * 1.1) * idleProfile.breath : 0.17;
       glowMaterial.opacity = (currentState === 'offline' ? 0.045 : idleGlow) + Math.max(0, pulse) * 2.2 + latchedSosPulse * 3.2 + holdPulse * 2.4 + domePulseMix * 0.42 + directLinePulse * 2.1;
       const ringFlash = Math.max(0, ringFlashUntil - now);
       const ringFlashMix = ringFlash ? Math.min(1, ringFlash / 900) : 0;
@@ -2363,7 +2382,7 @@
             ? 0.05 + latchedSosPulse * 0.5
             : currentState === 'direct_line_waiting' || currentState === 'direct_line_active'
               ? 0.028 + directLinePulse * 0.75
-              : 0.006;
+              : currentState === 'idle' ? idleProfile.ring : 0.006;
 
       if (waveUntil > now) {
         const progress = Math.max(0, Math.min(1, 1 - ((waveUntil - now) / 2400)));
